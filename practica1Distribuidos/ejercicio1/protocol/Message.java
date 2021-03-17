@@ -1,4 +1,4 @@
-package practica1ProgramacionDeSistemasDistribuidos.ejercicio1.protocol;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol;
 
 import java.io.Serializable;
 
