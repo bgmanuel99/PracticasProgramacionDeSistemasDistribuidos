@@ -1,7 +1,6 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
 
-import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.ControlRequest;
-import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.ControlResponse;
+import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.io.*;
 import java.net.*;
 
@@ -54,11 +53,8 @@ public class Client {
             inactiveProxy.start();
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
-            if(crs.getSubtype().equals("OP_DECRYPT_OK")) {
-                this.console.writeMessage("Data sended");
-            }else {
-                this.console.writeMessage("The proxy is disconn");
-            }
+            if(crs != null && crs.getSubtype().equals("OP_DECRYPT_OK")) this.console.writeMessage("Data sended");
+            else this.console.writeMessage("The proxy is a bit shy");
         }catch(ClassNotFoundException e) {
             System.out.println(e.getMessage());
         }catch(IOException e) {
@@ -68,18 +64,15 @@ public class Client {
     
     private void doRanking() {
         try {
-            ControlRequest crRanking = new ControlRequest("OP_RANKING");
-            this.os.writeObject(crRanking);
+            DataRequest dr = new DataRequest("OP_RANKING");
+            this.os.writeObject(dr);
 
-            ControlResponse crsRanking = (ControlResponse) this.is.readObject();
+            Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            inactiveProxy.start();
+            ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
-            if(crsRanking.getSubtype().equals("OP_RANKING_OK")){
-                this.console.writeMessage(crsRanking.getArgs().get(0).toString());
-            }else if(crsRanking.getSubtype().equals("OP_RANKING_NOK")){
-                this.console.writeMessage("The proxy is a bit shy");
-            }else{
-                this.console.writeMessage("The proxy is disconnected");
-            }
+            if(crs != null && crs.getSubtype().equals("OP_RANKING_OK")) this.console.writeMessage(crs.getArgs().get(0).toString());
+            else this.console.writeMessage("The proxy is disconnected");
         } catch (ClassNotFoundException e) {
             System.out.println(e.getMessage());
         } catch (IOException e) {
@@ -104,7 +97,7 @@ public class Client {
     }
     
     private void doDisconnect() {
-        if(this.socket!=null){
+        if(this.socket != null){
             try {
                 this.os.close();
                 this.os = null;
@@ -112,6 +105,20 @@ public class Client {
                 this.is = null;
                 this.socket.close();
                 this.socket = null;
+                this.done = false;
+            }catch(UncheckedIOException e) {
+                System.out.println(e.getMessage());
+            }catch(IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
+
+    private void doIsDisconnect(){
+        if(this.socket != null){
+            try {
+                this.is.close();
+                this.is = null;
                 this.done = false;
             }catch(UncheckedIOException e) {
                 System.out.println(e.getMessage());
@@ -132,7 +139,7 @@ public class Client {
         public void run() {
             try{
                 Thread.sleep(100);
-                if(!this.client.done) this.client.doDisconnect();
+                if(!this.client.done) this.client.doIsDisconnect();
             }catch(InterruptedException e){
                 System.out.println(e.getMessage());
             }
