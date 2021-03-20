@@ -3,7 +3,6 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.net.*;
 import java.io.*;
-import java.util.Arrays;
 
 public class Proxy {
     public static void main(String[] args) {
@@ -44,9 +43,8 @@ class Connection extends Thread {
                 this.sockets[0] = clientSocket;
                 this.os[0] = new ObjectOutputStream(this.sockets[0].getOutputStream());
                 this.is[0] = new ObjectInputStream(this.sockets[0].getInputStream());
-                int socketServer = numberSocket;
-                for(int i = 1; i <= sockets.length; i++){
-                    this.sockets[i] = new Socket("localhost", socketServer+=1);
+                for(int i = 1; i < sockets.length; i++) {
+                    this.sockets[i] = new Socket("localhost", numberSocket+=1);
                     this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
                     this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
                 }
@@ -63,11 +61,10 @@ class Connection extends Thread {
     public void run() {
         try{
             Request r = (Request) this.is[0].readObject();
-
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                if(cr.getSubtype().equals("OP_DECRYPT")) this.doDecrypt(cr.getArgs().get(0).toString());
-
+                if(cr.getSubtype().equals("OP_DECRYPT")) this.doDecrypt((byte [])cr.getArgs().get(0));
+                
                 ControlResponse crs = new ControlResponse("OP_DECRYPT_OK");
                 this.os[0].writeObject(crs);
             }else if(r.getType().equals("DATA_REQUEST")){
@@ -81,7 +78,7 @@ class Connection extends Thread {
 		}
     }
 
-    private void doDecrypt(String message) {
+    private void doDecrypt(byte [] message) {
         try{
             int [] cpuPercentage = new int[this.numberOfServers];
             DataRequest dr = new DataRequest("OP_CPU");
@@ -123,7 +120,7 @@ class Connection extends Thread {
                 rankingServer += "- Server " + i + ": " + cr.getArgs().get(0).toString() + "\n";
             }
 
-            ControlResponse crClient = new ControlResponse();
+            ControlResponse crClient = new ControlResponse("OP_RANKING_OK");
             crClient.getArgs().add(rankingServer);
             this.os[0].writeObject(crClient);
         }catch(ClassNotFoundException e) {
@@ -136,7 +133,7 @@ class Connection extends Thread {
     private void doConnect() {
     	try {
             int socketServer = 8000;
-            for(int i = 1; i <= sockets.length; i++){
+            for(int i = 1; i < this.sockets.length; i++){
                 this.sockets[i] = new Socket("localhost", socketServer+=1);
                 this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
                 this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
@@ -150,7 +147,7 @@ class Connection extends Thread {
 
     private void doDisconnect() {
         try{
-            for(int i = 1; i <= this.sockets.length; i++){
+            for(int i = 1; i < this.sockets.length; i++){
                 this.os[i].close();
                 this.os[i] = null;
                 this.is[i].close();

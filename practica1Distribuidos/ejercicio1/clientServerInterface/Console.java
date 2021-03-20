@@ -30,12 +30,12 @@ public class Console {
         return line;
     }
 
-    public String[] getCommandDecrypt() {
-        String [] message = new String[1];
+    public String getCommandDecrypt() {
+        String message = "";
         
         try{
             System.out.println("Introduce the message to decrypt: ");
-            message[0] = this.br.readLine();
+            message = this.br.readLine();
         }catch(IOException e) {
             System.out.println(e.getMessage());
         }

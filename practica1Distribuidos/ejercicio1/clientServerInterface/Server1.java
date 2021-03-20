@@ -2,8 +2,9 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.net.*;
-
+import java.util.Scanner;
 import java.io.*;
+import javax.crypto.Cipher;
 
 public class Server1 {
     public static void main(String[] args) {
@@ -47,19 +48,48 @@ class ConnectionServer1 extends Thread{
                 ControlRequest cr = (ControlRequest) r;
                 
                 if(cr.getSubtype().equals("OP_DECRYPT_MESSAGE")){
-                    System.out.println("mensaje desencriptandose...");
+                	this.decrypt((byte []) cr.getArgs().get(0));
+                    System.out.println("The message has been desencrypted");
+                    
+                    File file = new File("Server1Ranking.txt");
+                    int decryptedMessages = 0;
+                    if(file.exists()){
+                        Scanner scanner = new Scanner(file);
+                        while(scanner.hasNext()) {
+                            decryptedMessages += Integer.valueOf(scanner.next());
+                        }
+                        scanner.close();
+                    }else{
+                        throw new Exception("The file Server1Ranking.txt does not exist");
+                    }
+                    PrintWriter outputFile = new PrintWriter(file);
+                    outputFile.print(decryptedMessages+1);
+                    outputFile.close();
+
+                    System.out.println("Server state saved");
+
                     this.doDisconnect();
                 }
             }else if(r.getType().equals("DATA_REQUEST")){
                 DataRequest dr = (DataRequest) r;
                 if(dr.getSubtype().equals("OP_CPU")){
                     ControlResponse crsCPU = new ControlResponse("OP_CPU_OK");
-                    crsCPU.getArgs().add("30");
+                    crsCPU.getArgs().add("20");
                     this.osProxy.writeObject(crsCPU);
                     this.doDisconnect();
                 }else if(dr.getSubtype().equals("OP_RANKING_SERVER")){
+                    File file = new File("Server1Ranking.txt");
+                    String ranking = "0";
+                    if(file.exists()){
+                        Scanner scanner = new Scanner(file);
+                        while(scanner.hasNext()) ranking=scanner.next();
+                        scanner.close();
+                    }else{
+                        throw new Exception("The file Server1ranking.txt does not exist");
+                    }
+                    
                     ControlResponse crsRanking = new ControlResponse("OP_RANKING_SERVER_OK");
-                    crsRanking.getArgs().add("4");
+                    crsRanking.getArgs().add(ranking);
                     this.osProxy.writeObject(crsRanking);
                     this.doDisconnect();
                 }
@@ -68,7 +98,16 @@ class ConnectionServer1 extends Thread{
 			System.out.println("ClassNotFoundException: " + e.getMessage());
 		}catch(IOException e) {
 			System.out.println("readline: " + e.getMessage());
-		}
+		}catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public String decrypt(byte [] encryptedMessage) throws Exception {
+        final Cipher aes = Encrypt.getCipher(false);
+        final byte [] bytes = aes.doFinal(encryptedMessage);
+        final String message = new String(bytes, "UTF-8");
+        return message;
     }
 
     public void doDisconnect() {

@@ -3,6 +3,7 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.io.*;
 import java.net.*;
+import javax.crypto.Cipher;
 
 
 public class Client {
@@ -30,8 +31,8 @@ public class Client {
         
         while(!cmd.equals("close")){
             if(cmd.equals("decrypt")){
-                String [] message = this.console.getCommandDecrypt();
-                this.console.writeMessage("This is your message: " + message[0]);
+                String message = this.console.getCommandDecrypt();
+                this.console.writeMessage("This is your message: " + message);
                 this.doConnect(8000);
                 this.doDecrypt(message);
                 this.doDisconnect();
@@ -40,13 +41,17 @@ public class Client {
                 this.doRanking();
                 this.doDisconnect();
             }
+            
+            cmd = this.console.getCommand();
         }
+        
+        this.doDisconnect();
     }
 
-    private void doDecrypt(String [] message) {
+    private void doDecrypt(String message) {
         try{
             ControlRequest cr = new ControlRequest("OP_DECRYPT");
-            cr.getArgs().add(message[0]);
+            cr.getArgs().add(this.encryptMessage(message));
             this.os.writeObject(cr);
             
             //Thread inactiveProxy = new Thread(new InactiveProxy(this));
@@ -59,7 +64,9 @@ public class Client {
             System.out.println(e.getMessage());
         }catch(IOException e) {
             System.out.println(e.getMessage());
-        }
+        } catch (Exception e) {
+			e.printStackTrace();
+		}
     }
     
     private void doRanking() {
@@ -77,9 +84,15 @@ public class Client {
             System.out.println(e.getMessage());
         } catch (IOException e) {
             System.out.println(e.getMessage());
-        
+        }
     }
-}
+    
+    public byte[] encryptMessage(String message) throws Exception {
+        final byte[] bytes = message.getBytes("UTF-8");
+        final Cipher aes = Encrypt.getCipher(true);
+        final byte[] encryptedMessage = aes.doFinal(bytes);
+        return encryptedMessage;
+    }
     
     private void doConnect(int port) {
         try{
