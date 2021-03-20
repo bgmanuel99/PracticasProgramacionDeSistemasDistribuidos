@@ -2,44 +2,59 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.net.*;
-
 import java.io.*;
+import java.util.Arrays;
 
 public class Proxy {
     public static void main(String[] args) {
         try {
-            ServerSocket listenSocket = new ServerSocket(Integer.valueOf(System.getenv("PORT")));
+            int numberSocket = 8000, numberServers = 2;
+            ServerSocket listenSocket = new ServerSocket(numberSocket);
             
             while(true){
+            	System.out.println("Waiting proxy...");
                 Socket socket = listenSocket.accept();
+                System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
                    
-                new Connection(socket);
+                new Connection(socket, numberSocket, numberServers);
             }
-        } catch (IOException e) { 
+        }catch(IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
+        }catch(Exception e) {
+            System.out.println(e.getMessage());
         }
     }
 }
 
 class Connection extends Thread {
-    private ObjectOutputStream osClient, osServer1, osServer2;
-    private ObjectInputStream isClient, isServer1, isServer2;
-    private Socket clientSocket, serverSocket1, serverSocket2;
+    private ObjectOutputStream [] os;
+    private ObjectInputStream [] is;
+    private Socket [] sockets;
     private boolean done;
+    private int numberOfServers;
 
-    public Connection(Socket clientSocket) {
+    public Connection(Socket clientSocket, int numberSocket, int numberServers) throws Exception {
         try{
-            this.clientSocket = clientSocket;
-            this.serverSocket1 = new Socket("localhost", Integer.valueOf(System.getenv("SERVERPORT1")));
-            this.serverSocket2 = new Socket("localhost", Integer.valueOf(System.getenv("SERVERPORT2")));
-            this.isServer1 = new ObjectInputStream(this.serverSocket1.getInputStream());
-            this.isServer2 = new ObjectInputStream(this.serverSocket2.getInputStream());
-            this.osServer1 = new ObjectOutputStream(this.serverSocket1.getOutputStream());
-            this.osServer2 = new ObjectOutputStream(this.serverSocket2.getOutputStream());
-            this.osClient = new ObjectOutputStream(this.clientSocket.getOutputStream());
-            this.isClient = new ObjectInputStream(this.clientSocket.getInputStream());
-            this.done = false;
-            this.start();
+            if(numberServers > 0){
+                this.numberOfServers = numberServers;
+                this.sockets = new Socket[numberServers+1];
+                this.os = new ObjectOutputStream[numberServers+1];
+                this.is = new ObjectInputStream[numberServers+1];
+                
+                this.sockets[0] = clientSocket;
+                this.os[0] = new ObjectOutputStream(this.sockets[0].getOutputStream());
+                this.is[0] = new ObjectInputStream(this.sockets[0].getInputStream());
+                int socketServer = numberSocket;
+                for(int i = 1; i <= sockets.length; i++){
+                    this.sockets[i] = new Socket("localhost", socketServer+=1);
+                    this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
+                    this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
+                }
+                this.done = false;
+                this.start();
+            }else{
+                throw new Exception("Number of servers cannot be less than one");
+            }
         }catch(IOException e) {
             System.out.println("Connection: " + e.getMessage());
         }
@@ -47,23 +62,17 @@ class Connection extends Thread {
 
     public void run() {
         try{
-            Request r = (Request) this.isClient.readObject();
+            Request r = (Request) this.is[0].readObject();
 
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                if(cr.getSubtype().equals("OP_DECRYPT")) {
-                    this.doDecrypt(cr.getArgs().get(0).toString());
-                    this.doDisconnect();
-                }
+                if(cr.getSubtype().equals("OP_DECRYPT")) this.doDecrypt(cr.getArgs().get(0).toString());
 
                 ControlResponse crs = new ControlResponse("OP_DECRYPT_OK");
-                this.osClient.writeObject(crs);
+                this.os[0].writeObject(crs);
             }else if(r.getType().equals("DATA_REQUEST")){
                DataRequest dr = (DataRequest) r;
-               if(dr.getSubtype().equals("OP_RANKING")) {
-                   this.doRanking();
-                   this.doDisconnect();
-               }
+               if(dr.getSubtype().equals("OP_RANKING")) this.doRanking();
             }
         }catch(ClassNotFoundException e) {
 			System.out.println("ClassNotFoundException: " + e.getMessage());
@@ -74,25 +83,28 @@ class Connection extends Thread {
 
     private void doDecrypt(String message) {
         try{
-            int cpu1 = 0, cpu2 = 0;
-
+            int [] cpuPercentage = new int[this.numberOfServers];
             DataRequest dr = new DataRequest("OP_CPU");
-            this.osServer1.writeObject(dr);
-
-            ControlResponse crs1 = (ControlResponse) this.isServer1.readObject();
-            if(crs1 != null && crs1.getSubtype().equals("OP_CPU_OK")) cpu1 = Integer.valueOf(crs1.getArgs().get(0).toString());
-            
-            this.osServer2.writeObject(dr);
-            ControlResponse crs2 = (ControlResponse) this.isServer2.readObject();
-            if(crs2 != null && crs2.getSubtype().equals("OP_CPU_OK")) cpu2 = Integer.valueOf(crs2.getArgs().get(0).toString());
-
-            ControlRequest crMessage = new ControlRequest("OP_DECRYPT_MESSAGE");
-            crMessage.getArgs().add(message);
-            if(cpu1 >= cpu2) {
-                this.osServer2.writeObject(crMessage);
-            }else{
-                this.osServer1.writeObject(crMessage);
+            for(int i = 1; i <= this.numberOfServers; i++){
+                this.os[i].writeObject(dr);
+                ControlResponse cr = (ControlResponse) this.is[i].readObject();
+                cpuPercentage[i-1] = Integer.valueOf(cr.getArgs().get(0).toString());
             }
+            
+            this.doDisconnect();
+            this.doConnect();
+            
+            ControlRequest cr = new ControlRequest("OP_DECRYPT_MESSAGE");
+            int minCpu = 100;
+            int indexServer = 0;
+            for(int i = 0; i < cpuPercentage.length; i++) {
+                if(cpuPercentage[i] < minCpu) {
+                    minCpu = cpuPercentage[i];
+                    indexServer = i+1;
+                }
+            }
+            cr.getArgs().add(message);
+            this.os[indexServer].writeObject(cr);
         }catch(ClassNotFoundException e) {
             System.out.println("ClassNotFoundException: " + e.getMessage());
         }catch(IOException e) {
@@ -102,76 +114,55 @@ class Connection extends Thread {
 
     private void doRanking(){
         try {
-            String rankingServer1="", rankingServer2="";
+            String rankingServer = "";
 
             DataRequest dr = new DataRequest("OP_RANKING_SERVER");
-            this.osServer1.writeObject(dr);
+            for(int i = 1; i <= this.numberOfServers; i++){
+                this.os[i].writeObject(dr);
+                ControlResponse cr = (ControlResponse) this.is[i].readObject();
+                rankingServer += "- Server " + i + ": " + cr.getArgs().get(0).toString() + "\n";
+            }
 
-            //Thread inactiveServer1 = new Thread(new InactiveServer(this, "OP_RANKING"));
-            //inactiveServer1.start();
-            ControlResponse cr1 = (ControlResponse) this.isServer1.readObject();
-            this.done = true;
-            if(cr1 != null && cr1.getSubtype().equals("OP_RANKING_SERVER_OK")) rankingServer1 = cr1.getArgs().get(0).toString();
-            
-            this.osServer2.writeObject(dr);
-            
-            //Thread inactiveServer2 = new Thread(new InactiveServer(this, "OP_RANKING"));
-            //inactiveServer2.start();
-            ControlResponse cr2 = (ControlResponse) this.isServer2.readObject();
-            this.done = true;
-            if(cr2 != null && cr2.getSubtype().equals("OP_RANKING_SERVER_OK")) rankingServer2 = cr2.getArgs().get(0).toString();
-            
-            String response = "Server 1: " + rankingServer1 + " - Server 2: " + rankingServer2;
-            
-            ControlResponse clientResponse = new ControlResponse("OP_RANKING_OK");
-            clientResponse.getArgs().add(response);
-            this.osClient.writeObject(clientResponse);
+            ControlResponse crClient = new ControlResponse();
+            crClient.getArgs().add(rankingServer);
+            this.os[0].writeObject(crClient);
         }catch(ClassNotFoundException e) {
 			System.out.println("ClassNotFoundException: " + e.getMessage());
 		}catch(IOException e) {
 			System.out.println("readline: " + e.getMessage());
 		}
     }
-
-    private void doDisconnect() {
-        try{
-            if(clientSocket != null){
-                this.clientSocket.close();
-                this.clientSocket = null;
-                this.isClient.close();
-                this.isClient = null;
-                this.osClient.close();
-                this.osClient = null;
+    
+    private void doConnect() {
+    	try {
+            int socketServer = 8000;
+            for(int i = 1; i <= sockets.length; i++){
+                this.sockets[i] = new Socket("localhost", socketServer+=1);
+                this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
+                this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
             }
-            
-            if(serverSocket1 != null){
-                this.serverSocket1.close();
-                this.serverSocket1 = null;
-                this.isServer1.close();
-                this.isServer1 = null;
-                this.osServer1.close();
-                this.osServer1 = null;
-            }
-            
-            if(serverSocket2 != null){
-                this.serverSocket2.close();
-                this.serverSocket2 = null;
-                this.isServer2.close();
-                this.isServer2 = null;
-                this.osServer2.close();
-                this.osServer2 = null;
-            }
-
-            this.done = false;
-        }catch(UncheckedIOException e) {
+    	}catch(UncheckedIOException e) {
             System.out.println(e.getMessage());
         }catch(IOException e) {
             System.out.println(e.getMessage());
         }
     }
 
-    private void doIsDisconnect() {
-        
+    private void doDisconnect() {
+        try{
+            for(int i = 1; i <= this.sockets.length; i++){
+                this.os[i].close();
+                this.os[i] = null;
+                this.is[i].close();
+                this.is[i] = null;
+                this.sockets[i].close();
+                this.sockets[i]=null;
+            }
+        }catch(UncheckedIOException e) {
+            System.out.println(e.getMessage());
+        }catch(IOException e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     class InactiveServer implements Runnable{

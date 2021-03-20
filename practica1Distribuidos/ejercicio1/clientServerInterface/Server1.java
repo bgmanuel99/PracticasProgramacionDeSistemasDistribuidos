@@ -8,14 +8,16 @@ import java.io.*;
 public class Server1 {
     public static void main(String[] args) {
         try {
-            ServerSocket listenSocket = new ServerSocket(Integer.valueOf(System.getenv("SERVERPORT1")));
+            ServerSocket listenSocket = new ServerSocket(8001);
             
             while(true){
+            	System.out.println("Waiting server 1...");
                 Socket socket = listenSocket.accept();
+                System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
                    
                 new ConnectionServer1(socket);
             }
-        } catch (IOException e) { 
+        } catch (IOException e) {
             System.out.println("Listen socket: "+ e.getMessage());
         }
     }

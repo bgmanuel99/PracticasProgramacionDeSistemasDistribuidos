@@ -8,10 +8,12 @@ import java.io.*;
 public class Server2 {
     public static void main(String[] args) {
         try {
-            ServerSocket listenSocket = new ServerSocket(Integer.valueOf(System.getenv("SERVERPORT2")));
+            ServerSocket listenSocket = new ServerSocket(8002);
             
             while(true){
+            	System.out.println("Waiting server 2...");
                 Socket socket = listenSocket.accept();
+                System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
                    
                 new ConnectionServer2(socket);
             }
@@ -39,12 +41,16 @@ class ConnectionServer2 extends Thread{
 
     public void run() {
         try {
-            Request r = (Request)this.isProxy.readObject();
-
+        	System.out.println("1");
+            Request r = (Request) this.isProxy.readObject();
+            System.out.println("2");
+            System.out.println(r.getType().toString());
+            System.out.println(r.getSubtype().toString());
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                
+                System.out.println("3");
                 if(cr.getSubtype().equals("OP_DECRYPT_MESSAGE")){
+                	System.out.println(cr.getArgs().get(0).toString());
                     System.out.println("mensaje desencriptandose...");
                     this.doDisconnect();
                 }
@@ -62,6 +68,7 @@ class ConnectionServer2 extends Thread{
                     this.doDisconnect();
                 }
             }
+            this.doDisconnect();
         }catch(ClassNotFoundException e) {
 			System.out.println("ClassNotFoundException: " + e.getMessage());
 		}catch(IOException e) {

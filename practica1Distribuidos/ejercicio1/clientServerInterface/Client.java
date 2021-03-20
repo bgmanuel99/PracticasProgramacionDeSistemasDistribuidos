@@ -32,11 +32,11 @@ public class Client {
             if(cmd.equals("decrypt")){
                 String [] message = this.console.getCommandDecrypt();
                 this.console.writeMessage("This is your message: " + message[0]);
-                this.doConnect(Integer.valueOf(System.getenv("PORT")));
+                this.doConnect(8000);
                 this.doDecrypt(message);
                 this.doDisconnect();
             }else if(cmd.equals("ranking")){
-                this.doConnect(Integer.valueOf(System.getenv("PORT")));
+                this.doConnect(8000);
                 this.doRanking();
                 this.doDisconnect();
             }
@@ -49,8 +49,8 @@ public class Client {
             cr.getArgs().add(message[0]);
             this.os.writeObject(cr);
             
-            Thread inactiveProxy = new Thread(new InactiveProxy(this));
-            inactiveProxy.start();
+            //Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            //inactiveProxy.start();
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
             if(crs != null && crs.getSubtype().equals("OP_DECRYPT_OK")) this.console.writeMessage("Data sended");
@@ -67,8 +67,8 @@ public class Client {
             DataRequest dr = new DataRequest("OP_RANKING");
             this.os.writeObject(dr);
 
-            Thread inactiveProxy = new Thread(new InactiveProxy(this));
-            inactiveProxy.start();
+            //Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            //inactiveProxy.start();
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
             if(crs != null && crs.getSubtype().equals("OP_RANKING_OK")) this.console.writeMessage(crs.getArgs().get(0).toString());
@@ -83,7 +83,7 @@ public class Client {
     
     private void doConnect(int port) {
         try{
-            if(this.socket != null) {
+            if(this.socket == null) {
                 this.socket = new Socket("localhost", port);
     
                 this.os = new ObjectOutputStream(this.socket.getOutputStream());

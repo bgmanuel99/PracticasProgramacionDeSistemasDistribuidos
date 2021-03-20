@@ -11,7 +11,7 @@ public class ControlRequest extends Request{
         this.args = new ArrayList();
     }
 
-    public ControlRequest(String subType) {
+    public ControlRequest(String subtype) {
         super.type = "CONTROL_REQUEST";
         super.subtype = subtype;
         this.args = new ArrayList();

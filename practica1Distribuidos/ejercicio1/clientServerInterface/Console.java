@@ -2,8 +2,6 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 
 import java.io.*;
 
-import InterfazClienteServidor.Client;
-
 public class Console {
     public static String prompt = "Cliente v " + Client.version + "> ";
     
