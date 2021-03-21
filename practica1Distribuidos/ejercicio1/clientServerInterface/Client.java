@@ -54,18 +54,17 @@ public class Client {
             cr.getArgs().add(this.encryptMessage(message));
             this.os.writeObject(cr);
             
-            //Thread inactiveProxy = new Thread(new InactiveProxy(this));
-            //inactiveProxy.start();
+            Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            inactiveProxy.start();
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
             if(crs != null && crs.getSubtype().equals("OP_DECRYPT_OK")) this.console.writeMessage("Data sended");
-            else this.console.writeMessage("The proxy is a bit shy");
         }catch(ClassNotFoundException e) {
             System.out.println(e.getMessage());
         }catch(IOException e) {
-            System.out.println(e.getMessage());
-        } catch (Exception e) {
-			e.printStackTrace();
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy and the message has not been received");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
 		}
     }
     
@@ -74,16 +73,17 @@ public class Client {
             DataRequest dr = new DataRequest("OP_RANKING");
             this.os.writeObject(dr);
 
-            //Thread inactiveProxy = new Thread(new InactiveProxy(this));
-            //inactiveProxy.start();
+            Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            inactiveProxy.start();
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
             if(crs != null && crs.getSubtype().equals("OP_RANKING_OK")) this.console.writeMessage(crs.getArgs().get(0).toString());
-            else this.console.writeMessage("The proxy is disconnected");
-        } catch (ClassNotFoundException e) {
+        }catch (ClassNotFoundException e) {
             System.out.println(e.getMessage());
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
+        }catch (IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy and the message has not been received");
+        }catch(Exception e) {
+        	System.out.println(e.getMessage());
         }
     }
     
@@ -123,20 +123,8 @@ public class Client {
                 System.out.println(e.getMessage());
             }catch(IOException e) {
                 System.out.println(e.getMessage());
-            }
-        }
-    }
-
-    private void doIsDisconnect(){
-        if(this.socket != null){
-            try {
-                this.is.close();
-                this.is = null;
-                this.done = false;
-            }catch(UncheckedIOException e) {
-                System.out.println(e.getMessage());
-            }catch(IOException e) {
-                System.out.println(e.getMessage());
+            }catch(NullPointerException e) {
+            	System.out.println(e.getMessage());
             }
         }
     }
@@ -151,8 +139,8 @@ public class Client {
         @Override
         public void run() {
             try{
-                Thread.sleep(100);
-                if(!this.client.done) this.client.doIsDisconnect();
+                Thread.sleep(200);
+                if(!this.client.done) this.client.doDisconnect();
             }catch(InterruptedException e){
                 System.out.println(e.getMessage());
             }

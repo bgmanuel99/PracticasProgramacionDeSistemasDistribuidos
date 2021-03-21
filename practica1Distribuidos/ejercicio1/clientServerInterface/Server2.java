@@ -2,6 +2,7 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.net.*;
+import java.util.Random;
 import java.util.Scanner;
 import java.io.*;
 import javax.crypto.Cipher;
@@ -47,7 +48,7 @@ class ConnectionServer2 extends Thread{
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
                 if(cr.getSubtype().equals("OP_DECRYPT_MESSAGE")){
-                    this.decrypt((byte []) cr.getArgs().get(0));
+                    System.out.println(this.decrypt((byte []) cr.getArgs().get(0)));
                     System.out.println("The message has been desencrypted");
 
                     File file = new File("Server2Ranking.txt");
@@ -73,7 +74,8 @@ class ConnectionServer2 extends Thread{
                 DataRequest dr = (DataRequest) r;
                 if(dr.getSubtype().equals("OP_CPU")){
                     ControlResponse crsCPU = new ControlResponse("OP_CPU_OK");
-                    crsCPU.getArgs().add("30");
+                    Random random = new Random();
+                    crsCPU.getArgs().add(random.nextInt(101));
                     this.osProxy.writeObject(crsCPU);
                     this.doDisconnect();
                 }else if(dr.getSubtype().equals("OP_RANKING_SERVER")){
@@ -99,7 +101,7 @@ class ConnectionServer2 extends Thread{
 		}catch(IOException e) {
 			System.out.println("readline: " + e.getMessage());
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.out.println(e.getMessage());
 		}
     }
 
