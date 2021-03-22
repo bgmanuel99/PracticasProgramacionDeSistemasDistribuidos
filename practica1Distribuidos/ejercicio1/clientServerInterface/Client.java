@@ -59,6 +59,7 @@ public class Client {
             ControlResponse crs = (ControlResponse) this.is.readObject();
             this.done = true;
             if(crs != null && crs.getSubtype().equals("OP_DECRYPT_OK")) this.console.writeMessage("Data sended");
+            else if(crs != null && crs.getSubtype().equals("OP_DECRYPT_NOK")) this.console.writeMessage("Error: The message could not be sent to the servers");
         }catch(ClassNotFoundException e) {
             System.out.println(e.getMessage());
         }catch(IOException e) {

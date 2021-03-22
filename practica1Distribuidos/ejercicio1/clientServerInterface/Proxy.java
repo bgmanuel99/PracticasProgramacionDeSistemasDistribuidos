@@ -32,6 +32,7 @@ class Connection extends Thread {
     private int [] dataCpu;
     private String [] dataRanking;
     private int numberOfServers;
+    private boolean error =false;
 
     public Connection(Socket clientSocket, int numberSocket, int numberServers) throws Exception {
         try{
@@ -67,10 +68,18 @@ class Connection extends Thread {
             Request r = (Request) this.is[0].readObject();
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                if(cr.getSubtype().equals("OP_DECRYPT")) this.doDecrypt((byte [])cr.getArgs().get(0));
-                
-                ControlResponse crs = new ControlResponse("OP_DECRYPT_OK");
-                this.os[0].writeObject(crs);
+                if(cr.getSubtype().equals("OP_DECRYPT")) {
+                	this.doDecrypt((byte [])cr.getArgs().get(0));
+                	
+                    if(!this.error) {
+                    	ControlResponse crs = new ControlResponse("OP_DECRYPT_OK");
+                        this.os[0].writeObject(crs);
+                    }else {
+                    	ControlResponse crs = new ControlResponse("OP_DECRYPT_NOK");
+                        this.os[0].writeObject(crs);
+                    }
+                    this.error = false;
+                }
             }else if(r.getType().equals("DATA_REQUEST")){
                DataRequest dr = (DataRequest) r;
                if(dr.getSubtype().equals("OP_RANKING")) this.doRanking();
@@ -85,25 +94,49 @@ class Connection extends Thread {
     private void doDecrypt(byte [] message) {
         try{
             DataRequest dr = new DataRequest("OP_CPU");
-            for(int i = 1; i < this.numberOfServers; i++){
+            for(int i = 1; i <= this.numberOfServers; i++){
                 DataCpuRanking dataCPU = new DataCpuRanking(this, "CPU", i, dr);
                 dataCPU.start();
             }
-            while(!this.checkCPUThreads());
+            boolean end=false;
+            while(!end) {
+            	boolean allgood=false;
+            	for(int i = 0; i < this.dataCpu.length; i++ ) {
+            		//System.out.println(this.dataCpu[i]);   		
+                    if(this.dataCpu[i] == 0) {
+                    	allgood=false;
+                    }else {
+                    	allgood=true;
+                    }            
+                }
+
+            	if(allgood==true) {
+            		end=true;
+            	}
+                
+            }
             this.doDisconnect();
             this.doConnect();
+            System.out.println(this.sockets[1].isConnected());
             
             ControlRequest cr = new ControlRequest("OP_DECRYPT_MESSAGE");
             int minCpu = 100;
             int indexServer = 0;
             for(int i = 0; i < this.dataCpu.length; i++) {
+            	System.out.println(this.dataCpu[i]);
                 if(this.dataCpu[i] < minCpu) {
                     minCpu = this.dataCpu[i];
                     indexServer = i+1;
                 }
             }
-            cr.getArgs().add(message);
-            this.os[indexServer].writeObject(cr);
+            if(indexServer !=0) {
+            	System.out.println(indexServer);
+            	cr.getArgs().add(message);
+            	this.os[indexServer].writeObject(cr);
+            	
+            }else {
+            	this.error=true;
+            }
         }catch(IOException e) {
             System.out.println("Readline: " + e.getMessage());
         }
@@ -118,8 +151,27 @@ class Connection extends Thread {
                 DataCpuRanking dataRANKING = new DataCpuRanking(this, "RANKING", i, dr);
                 dataRANKING.start();
             }
-            while(!this.checkRankingThreads());
-            for(int i = 0; i < this.dataRanking.length; i++) rankingServer += "- Server " + (i+1) + " has decrypted: " + this.dataRanking[i] + " messages.\n";
+            boolean end=false;
+            while(!end) {
+            	boolean allgood=false;
+            	for(int i = 0; i < this.dataRanking.length; i++ ) {
+            		//System.out.println(this.dataCpu[i]);   		
+                    if(this.dataRanking[i] == "") {
+                    	allgood=false;
+                    }else {
+                    	allgood=true;
+                    }            
+                }
+
+            	if(allgood==true) {
+            		end=true;
+            	}
+                
+            }
+            for(int i = 0; i < this.dataRanking.length; i++) {
+            	System.out.println(this.dataRanking[i]);
+            	 rankingServer += "- Server " + (i+1) + " has decrypted: " + this.dataRanking[i] + " messages.\n";
+            }
 
             ControlResponse crClient = new ControlResponse("OP_RANKING_OK");
             crClient.getArgs().add(rankingServer);
@@ -147,12 +199,14 @@ class Connection extends Thread {
     private void doDisconnect() {
         try{
             for(int i = 1; i < this.sockets.length; i++){
-                this.os[i].close();
-                this.os[i] = null;
-                this.is[i].close();
-                this.is[i] = null;
-                this.sockets[i].close();
-                this.sockets[i]=null;
+                if(this.sockets[i]!=null) {
+                	this.os[i].close();
+                    this.os[i] = null;
+                    this.is[i].close();
+                    this.is[i] = null;
+                    this.sockets[i].close();
+                    this.sockets[i]=null;
+                }
             }
         }catch(UncheckedIOException e) {
             System.out.println(e.getMessage());
@@ -176,19 +230,9 @@ class Connection extends Thread {
         }
     }
     
-    private boolean checkCPUThreads() {
-        for(int i = 0; i < this.dataCpu.length; i++ ) {
-            if(this.dataCpu[i] == 0) return false;
-        }
-        return true;
-    }
+
     
-    private boolean checkRankingThreads() {
-    	for(int i = 0; i < this.dataRanking.length; i++) {
-    		if(this.dataRanking[i] == "") return false;
-    	}
-    	return true;
-    }
+
 
     class DataCpuRanking extends Thread {
         private Connection connection;
@@ -205,21 +249,26 @@ class Connection extends Thread {
             this.done = false;
         }
 
-        @Override
+       
+		@Override
         public void run() {
+        	
             Marshalling m = new Marshalling(this.type, this.indexServer, this);
             try{
                 this.connection.os[this.indexServer].writeObject(this.dataRequest);
                 m.start();
                 ControlResponse crs = (ControlResponse) this.connection.is[this.indexServer].readObject();
+                System.out.println(crs.getArgs().get(0).toString());
                 this.done = true;
                 if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = Integer.valueOf(crs.getArgs().get(0).toString());
                 else this.connection.dataRanking[this.indexServer-1] = crs.getArgs().get(0).toString();
             }catch(IOException e) {
                 System.out.println(e.getMessage());
+                if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = m.getFinalData();
+                else this.connection.dataRanking[this.indexServer-1] = String.valueOf(m.getFinalData());
+                System.out.println(this.connection.dataRanking[this.indexServer-1]);
             }catch(ClassNotFoundException e) {
                 System.out.println(e.getMessage());
-            }finally {
                 if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = m.getFinalData();
                 else this.connection.dataRanking[this.indexServer-1] = String.valueOf(m.getFinalData());
             }
@@ -241,11 +290,13 @@ class Connection extends Thread {
         @Override
         public void run(){
             try {
-                Thread.sleep(200);
+            	
+                Thread.sleep(300);
                 if(this.type.equals("RANKING") && !this.dataCpuRanking.done) {
                     this.finalData = 0;
                     this.dataCpuRanking.connection.doDisconnect(this.indexServer);
                 }else if(this.type.equals("CPU") && !this.dataCpuRanking.done) {
+                	System.out.println("cpu fails");
                     this.finalData = 100;
                     this.dataCpuRanking.connection.doDisconnect(this.indexServer);
                 }
