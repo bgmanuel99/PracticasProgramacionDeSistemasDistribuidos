@@ -33,11 +33,11 @@ public class Client {
             if(cmd.equals("decrypt")){
                 String message = this.console.getCommandDecrypt();
                 this.console.writeMessage("This is your message: " + message);
-                this.doConnect(8000);
+                this.doConnect(4000);
                 this.doDecrypt(message);
                 this.doDisconnect();
             }else if(cmd.equals("ranking")){
-                this.doConnect(8000);
+                this.doConnect(4000);
                 this.doRanking();
                 this.doDisconnect();
             }
@@ -104,9 +104,11 @@ public class Client {
                 this.is = new ObjectInputStream(this.socket.getInputStream());
             }
         }catch(UncheckedIOException e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage()+ "\n Establishing connection with proxy 2 ...");
+            this.doConnect(4001);
         }catch(IOException e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage()+"\n Establishing connection with proxy 2 ...");
+            this.doConnect(4001);
         }
     }
     
