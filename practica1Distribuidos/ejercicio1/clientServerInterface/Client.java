@@ -3,6 +3,7 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 import javax.crypto.Cipher;
 
 
@@ -14,35 +15,76 @@ public class Client {
     private ObjectOutputStream os;
     private ObjectInputStream is;
     private boolean done;
+    private int maxProxy = 0;
 
     public static void main(String [] args) {
+    	GlobalFunctions.initFile("ClientLatency.txt");
+    	GlobalFunctions.initFile("Server1Ranking.txt");
+    	GlobalFunctions.initFile("Server2Ranking.txt");
+    	GlobalFunctions.initFile("Proxy1Latency.txt");
+    	GlobalFunctions.initFile("Proxy2Latency.txt");
         new Client();
     }
 
     public void init() {
-        this.console = new Console();
-        this.done = false;
+        try{
+            this.console = new Console();
+            this.done = false;
+            this.maxProxy = GlobalFunctions.getExternalVariables("MAXPROXY");
+        }catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
     
-    public Client(){
+    public Client() {
         this.init();
 
-        String cmd= this.console.getCommand();
-        
-        while(!cmd.equals("close")){
-            if(cmd.equals("decrypt")){
-                String message = this.console.getCommandDecrypt();
-                this.console.writeMessage("This is your message: " + message);
-                this.doConnect(8000);
-                this.doDecrypt(message);
-                this.doDisconnect();
-            }else if(cmd.equals("ranking")){
-                this.doConnect(8000);
-                this.doRanking();
-                this.doDisconnect();
-            }
+        if(this.maxProxy != 0){
+            String cmd= this.console.getCommand();
             
-            cmd = this.console.getCommand();
+            while(!cmd.equals("close")){
+                long start = System.currentTimeMillis();
+                try {                	
+                	if(cmd.equals("decrypt")){
+                		String message = this.console.getCommandDecrypt();
+                		this.console.writeMessage("This is your message: " + message);
+                		this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
+                		this.doDecrypt(message);
+                		this.doDisconnect();
+                	}else if(cmd.equals("ranking")){
+                		this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
+                		this.doRanking();
+                		this.doDisconnect();
+                	}
+                }catch (Exception e) {
+                	System.out.println(e.getMessage());
+                }
+                long end = System.currentTimeMillis();
+                
+                try{
+                    File file = new File("ClientLatency.txt");
+                    int i = 0;
+                    long latency = 0;
+                    if(file.exists()){
+                        Scanner scanner = new Scanner(file);
+                        while(scanner.hasNext()){
+                            latency += Long.valueOf(scanner.next());
+                            i++;
+                        }
+                        scanner.close();
+                        latency += (end - start);
+                        PrintWriter outputFile = new PrintWriter(file);
+                        outputFile.print(latency/(i+1));
+                        outputFile.close();
+                    }else {
+                        throw new Exception("The file ClientLatency.txt does not exist");
+                    }
+                }catch (Exception e){
+                    System.out.println(e.getMessage());
+                }
+                
+                cmd = this.console.getCommand();
+            }
         }
         
         this.doDisconnect();
@@ -90,13 +132,17 @@ public class Client {
     
     public byte[] encryptMessage(String message) throws Exception {
         final byte[] bytes = message.getBytes("UTF-8");
-        final Cipher aes = Encrypt.getCipher(true);
+        final Cipher aes = GlobalFunctions.getCipher(true);
         final byte[] encryptedMessage = aes.doFinal(bytes);
         return encryptedMessage;
     }
     
-    private void doConnect(int port) {
+    private void doConnect(int port, int count) {
+    	int auxProxy = 0;
         try{
+            if(count > this.maxProxy) throw new Exception("All the proxys are disconnected");
+            count++;
+            auxProxy = GlobalFunctions.getExternalVariables("PORTPROXY" + count);
             if(this.socket == null) {
                 this.socket = new Socket("localhost", port);
     
@@ -104,8 +150,12 @@ public class Client {
                 this.is = new ObjectInputStream(this.socket.getInputStream());
             }
         }catch(UncheckedIOException e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
+            this.doConnect(auxProxy, count);
         }catch(IOException e) {
+            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
+            this.doConnect(auxProxy, count);
+        }catch(Exception e) {
             System.out.println(e.getMessage());
         }
     }
@@ -140,9 +190,22 @@ public class Client {
         @Override
         public void run() {
             try{
-                Thread.sleep(200);
+                File file = new File("ClientLatency.txt");
+                long latency = 0;
+                if(file.exists()){
+                    Scanner scanner = new Scanner(file);
+                    while(scanner.hasNext()){
+                        latency = Long.valueOf(scanner.next());
+                    }
+                    scanner.close();
+                }else {
+                    throw new Exception("The file ClientLatency.txt does not exist");
+                }
+                Thread.sleep(latency);
                 if(!this.client.done) this.client.doDisconnect();
             }catch(InterruptedException e){
+                System.out.println(e.getMessage());
+            }catch(Exception e){
                 System.out.println(e.getMessage());
             }
         }
