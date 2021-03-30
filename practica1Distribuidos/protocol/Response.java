@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol;
+package PracticasDistribuidos.practica1Distribuidos.protocol;
 
 public abstract class Response extends Message{
     private static final long serialVersionUID = 1L;

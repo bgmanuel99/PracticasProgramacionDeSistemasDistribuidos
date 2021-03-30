@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
 
 import java.io.*;
 
@@ -10,7 +10,7 @@ public class Console {
     
     public Console(){
         this.isr = new InputStreamReader(System.in);
-        this.br = new BufferedReader(isr);
+        this.br = new BufferedReader(this.isr);
     }
 
     public void writeMessage(String msg) {
