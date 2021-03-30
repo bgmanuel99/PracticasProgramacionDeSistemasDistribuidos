@@ -105,10 +105,12 @@ public class Client {
             }
         }catch(UncheckedIOException e) {
             System.out.println(e.getMessage()+ "\n Establishing connection with proxy 2 ...");
-            this.doConnect(4001);
+            int port2 = port+1;
+            this.doConnect(port2);
         }catch(IOException e) {
             System.out.println(e.getMessage()+"\n Establishing connection with proxy 2 ...");
-            this.doConnect(4001);
+            int port2 = port+1;
+            this.doConnect(port2);
         }
     }
     

@@ -243,7 +243,7 @@ class Connection extends Thread {
                 else this.connection.dataRanking[this.indexServer-1] = String.valueOf(m.getFinalData());
             }
             long end =System.currentTimeMillis();
-            System.out.println("Latency server "+ this.indexServer+": " +(end-start));
+            System.out.println("Latency server "+ this.indexServer+": " +(end-start)+" ms");
             File file= new File("mean"+this.indexServer+".txt");
             if(file.exists()) {
             	PrintWriter outputFile;
@@ -267,7 +267,7 @@ class Connection extends Thread {
             	
 
             }else {
-            	System.out.println("The file mean.txt does not exists");
+            	System.out.println("The file "+file.getName()+" does not exists");
             }
             
         }
@@ -289,7 +289,7 @@ class Connection extends Thread {
         @Override
         public void run(){
         	File file= new File("mean"+this.indexServer+".txt");
-        	long sleep= 300;
+        	long sleep= 300; 
             if(file.exists()) {
             	
 				try {
@@ -303,8 +303,8 @@ class Connection extends Thread {
                     scanner.close();
                     if(sum!=0) {
                     	sleep=(sum/i);
-                    	System.out.println("mar "+sleep);
                     }
+                    System.out.println("Current waiting time: "+sleep+" ms");
                     
 					
 				} catch (FileNotFoundException e) {
@@ -314,7 +314,7 @@ class Connection extends Thread {
             	
 
             }else {
-            	System.out.println("The file mean.txt does not exists");
+            	System.out.println("The file "+file.getName()+" does not exists");
             }
         	
             try {
