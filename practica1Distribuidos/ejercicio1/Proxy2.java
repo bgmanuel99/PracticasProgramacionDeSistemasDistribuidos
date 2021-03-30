@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
 
 import java.net.*;
 import java.io.*;

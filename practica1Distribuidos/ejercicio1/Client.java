@@ -1,6 +1,6 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
 
-import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
+import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 import java.io.*;
 import java.net.*;
 import java.util.Scanner;

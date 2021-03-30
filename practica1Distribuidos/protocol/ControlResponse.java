@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol;
+package PracticasDistribuidos.practica1Distribuidos.protocol;
 
 import java.util.ArrayList;
 

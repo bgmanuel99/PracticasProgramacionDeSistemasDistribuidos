@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -7,7 +7,7 @@ import java.util.Scanner;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-class GlobalFunctions {
+public class GlobalFunctions {
     static Cipher getCipher(boolean allowEncrypt) throws Exception {
         final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873ºkxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -23,38 +23,19 @@ class GlobalFunctions {
     
         return aes;
     }
-    
-    static synchronized void setLatency(long latency, int numberProxy) throws Exception {
-        File file = new File("Proxy" + numberProxy + "Latency.txt");
-        int i = 0;
-        if(file.exists()){
-            Scanner scanner = new Scanner(file);
-            while(scanner.hasNext()){
-                latency += Long.valueOf(scanner.next());
-                i++;
-            }
-            scanner.close();
-            PrintWriter outputFile = new PrintWriter(file);
-            outputFile.print(latency/(i+1));
-            outputFile.close();
-        }else {
-            throw new Exception("The file Proxy" + numberProxy + "Latency.txt does not exist");
-        }
+
+    static byte[] encryptMessage(String message) throws Exception {
+        final byte[] bytes = message.getBytes("UTF-8");
+        final Cipher aes = GlobalFunctions.getCipher(true);
+        final byte[] encryptedMessage = aes.doFinal(bytes);
+        return encryptedMessage;
     }
 
-    static synchronized long getLatency(int numberProxy) throws Exception {
-        File file = new File("Proxy" + numberProxy + "Latency.txt");
-        long latency = 300;
-        if(file.exists()){
-            Scanner scanner = new Scanner(file);
-            while(scanner.hasNext()){
-                latency = Long.valueOf(scanner.next());
-            }
-            scanner.close();
-        }else {
-            throw new Exception("The file Proxy" + numberProxy + "Latency.txt does not exist");
-        }
-        return latency;
+    static String decrypt(byte [] encryptedMessage) throws Exception {
+        final Cipher aes = GlobalFunctions.getCipher(false);
+        final byte [] bytes = aes.doFinal(encryptedMessage);
+        final String message = new String(bytes, "UTF-8");
+        return message;
     }
 
     static int getExternalVariables(String name) throws Exception {
@@ -72,7 +53,7 @@ class GlobalFunctions {
         if(name.equals("MAXSERVER")) return 0;
         return 8000;
     }
-    
+
     static void initFile(String name) {
     	try {    		
     		File file = new File(name);
