@@ -3,6 +3,7 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInter
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
 
 import java.net.*;
+import java.util.Scanner;
 import java.io.*;
 
 public class Proxy {
@@ -235,6 +236,7 @@ class Connection extends Thread {
                 this.done = true;
                 if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = Integer.valueOf(crs.getArgs().get(0).toString());
                 else this.connection.dataRanking[this.indexServer-1] = crs.getArgs().get(0).toString();
+                
             }catch(IOException e) {
                 System.out.println(e.getMessage());
                 if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = m.getFinalData();
