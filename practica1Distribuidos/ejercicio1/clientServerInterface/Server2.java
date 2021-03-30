@@ -10,7 +10,7 @@ import javax.crypto.Cipher;
 public class Server2 {
     public static void main(String[] args) {
         try {
-            ServerSocket listenSocket = new ServerSocket(8002);
+            ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTSERVER2"));
             
             while(true){
             	System.out.println("Waiting server 2...");
@@ -21,6 +21,8 @@ public class Server2 {
             }
         } catch (IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
+        }catch (Exception e) {
+            System.out.println(e.getMessage());
         }
     }
 }
@@ -106,7 +108,7 @@ class ConnectionServer2 extends Thread{
     }
 
     public String decrypt(byte [] encryptedMessage) throws Exception {
-        final Cipher aes = Encrypt.getCipher(false);
+        final Cipher aes = GlobalFunctions.getCipher(false);
         final byte [] bytes = aes.doFinal(encryptedMessage);
         final String message = new String(bytes, "UTF-8");
         return message;

@@ -1,6 +1,7 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio1.clientServerInterface;
 
 import PracticasDistribuidos.practica1Distribuidos.ejercicio1.protocol.*;
+
 import java.net.*;
 import java.util.Scanner;
 import java.io.*;
@@ -8,15 +9,20 @@ import java.io.*;
 public class Proxy {
     public static void main(String[] args) {
         try {
-            int numberSocket = 8000, numberServers = 2;
-            ServerSocket listenSocket = new ServerSocket(4000);
+            int numberServers = 0;
+            numberServers = GlobalFunctions.getExternalVariables("MAXSERVER");
+            ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTPROXY1"));
             
-            while(true){
-            	System.out.println("Waiting proxy1...");
-                Socket socket = listenSocket.accept();
-                System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
-                   
-                new Connection(socket, numberSocket, numberServers);
+            if(numberServers != 0) {
+                while(true){
+                    System.out.println("Waiting proxy1...");
+                    Socket socket = listenSocket.accept();
+                    System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
+                       
+                    new Connection(socket, numberServers, 1);
+                }
+            }else {
+                throw new Exception("There was an internal problem.");
             }
         }catch(IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
@@ -33,32 +39,31 @@ class Connection extends Thread {
     private int [] dataCpu;
     private String [] dataRanking;
     private int numberOfServers;
-    private boolean error =false;
+    private boolean error;
+    private int numberProxy;
 
-    public Connection(Socket clientSocket, int numberSocket, int numberServers) throws Exception {
+    public Connection(Socket clientSocket, int numberServers, int numberProxy) throws Exception {
         try{
-            if(numberServers > 0){
-                this.numberOfServers = numberServers;
-                this.sockets = new Socket[numberServers+1];
-                this.os = new ObjectOutputStream[numberServers+1];
-                this.is = new ObjectInputStream[numberServers+1];
-                
-                this.sockets[0] = clientSocket;
-                this.os[0] = new ObjectOutputStream(this.sockets[0].getOutputStream());
-                this.is[0] = new ObjectInputStream(this.sockets[0].getInputStream());
-                for(int i = 1; i < sockets.length; i++) {
-                    this.sockets[i] = new Socket("localhost", numberSocket+=1);
-                    this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
-                    this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
-                }
-                this.dataCpu = new int[this.numberOfServers];
-                this.dataRanking = new String[this.numberOfServers];
-                for(int i = 0; i < this.dataCpu.length; i++) dataCpu[i] = 0;
-                for(int i = 0; i < this.dataRanking.length; i++) dataRanking[i] = "";
-                this.start();
-            }else{
-                throw new Exception("Number of servers cannot be less than one");
+            this.numberOfServers = numberServers;
+            this.sockets = new Socket[numberServers+1];
+            this.os = new ObjectOutputStream[numberServers+1];
+            this.is = new ObjectInputStream[numberServers+1];
+            
+            this.sockets[0] = clientSocket;
+            this.os[0] = new ObjectOutputStream(this.sockets[0].getOutputStream());
+            this.is[0] = new ObjectInputStream(this.sockets[0].getInputStream());
+            for(int i = 1; i < sockets.length; i++) {
+                this.sockets[i] = new Socket("localhost", GlobalFunctions.getExternalVariables("PORTSERVER"+i));
+                this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
+                this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
             }
+            this.dataCpu = new int[this.numberOfServers];
+            this.dataRanking = new String[this.numberOfServers];
+            for(int i = 0; i < this.dataCpu.length; i++) dataCpu[i] = 0;
+            for(int i = 0; i < this.dataRanking.length; i++) dataRanking[i] = "";
+            this.error = false;
+            this.numberProxy = numberProxy;
+            this.start();
         }catch(IOException e) {
             System.out.println("Connection: " + e.getMessage());
         }
@@ -88,7 +93,7 @@ class Connection extends Thread {
         }catch(ClassNotFoundException e) {
 			System.out.println("ClassNotFoundException: " + e.getMessage());
 		}catch(IOException e) {
-			System.out.println("readline: " + e.getMessage());
+			System.out.println("Readline run function: " + e.getMessage());
 		}
     }
 
@@ -97,8 +102,7 @@ class Connection extends Thread {
         	
             DataRequest dr = new DataRequest("OP_CPU");
             for(int i = 1; i <= this.numberOfServers; i++){
-                DataCpuRanking dataCPU = new DataCpuRanking(this, "CPU", i, dr);
-                dataCPU.start();
+                new DataCpuRanking(this, "CPU", i, dr);
             }
             
             while(true) {
@@ -125,7 +129,7 @@ class Connection extends Thread {
             	this.os[indexServer].writeObject(cr);
             }else this.error = true;
         }catch(IOException e) {
-            System.out.println("Readline: " + e.getMessage());
+            System.out.println("Readline doDecrypt: " + e.getMessage());
         }
     }
 
@@ -135,8 +139,7 @@ class Connection extends Thread {
 
             DataRequest dr = new DataRequest("OP_RANKING_SERVER");
             for(int i = 1; i <= this.numberOfServers; i++){
-                DataCpuRanking dataRANKING = new DataCpuRanking(this, "RANKING", i, dr);
-                dataRANKING.start();
+                new DataCpuRanking(this, "RANKING", i, dr);
             }
             
             while(true) {
@@ -151,15 +154,14 @@ class Connection extends Thread {
             crClient.getArgs().add(rankingServer);
             this.os[0].writeObject(crClient);
         }catch(IOException e) {
-			System.out.println("readline: " + e.getMessage());
+			System.out.println("Readline doRanking: " + e.getMessage());
 		}
     }
     
     private void doConnect() {
     	try {
-            int socketServer = 8000;
             for(int i = 1; i < this.sockets.length; i++){
-                this.sockets[i] = new Socket("localhost", socketServer+=1);
+                this.sockets[i] = new Socket("localhost", GlobalFunctions.getExternalVariables("PORTSERVER"+i));
                 this.os[i] =  new ObjectOutputStream(this.sockets[i].getOutputStream());
                 this.is[i] = new ObjectInputStream(this.sockets[i].getInputStream());
             }
@@ -167,6 +169,8 @@ class Connection extends Thread {
             System.out.println(e.getMessage());
         }catch(IOException e) {
             System.out.println(e.getMessage());
+        }catch(Exception e) {
+        	System.out.println(e.getMessage());
         }
     }
 
@@ -217,14 +221,14 @@ class Connection extends Thread {
             this.indexServer = indexServer;
             this.dataRequest = dataRequest;
             this.done = false;
+            this.start();
         }
 
 		@Override
         public void run() {
-			
-			
-            Marshalling m = new Marshalling(this.type, this.indexServer, this);
-            long start= System.currentTimeMillis();
+            Masking m = new Masking(this.type, this.indexServer, this);
+
+            long start = System.currentTimeMillis();
             try{
                 this.connection.os[this.indexServer].writeObject(this.dataRequest);
                 m.start();
@@ -242,43 +246,22 @@ class Connection extends Thread {
                 if(this.type.equals("CPU")) this.connection.dataCpu[this.indexServer-1] = m.getFinalData();
                 else this.connection.dataRanking[this.indexServer-1] = String.valueOf(m.getFinalData());
             }
-            long end =System.currentTimeMillis();
-            System.out.println("Latency server "+ this.indexServer+": " +(end-start)+" ms");
-            File file= new File("mean"+this.indexServer+".txt");
-            if(file.exists()) {
-            	PrintWriter outputFile;
-				try {
-					String latency="";
-					Scanner scanner = new Scanner(file);
-					while(scanner.hasNext()) {
-                       latency +=scanner.next();
-                       latency +=" ";
-                    }
-                    scanner.close();
-					outputFile = new PrintWriter(file);
-					String text=latency+(end-start);
-					
-					outputFile.print(text);
-	                outputFile.close();
-				} catch (FileNotFoundException e) {
-					
-					System.out.println(e.getMessage());
-				}
-            	
-
-            }else {
-            	System.out.println("The file "+file.getName()+" does not exists");
-            }
+            long end = System.currentTimeMillis();
             
+            try{
+                GlobalFunctions.setLatency((end - start), this.connection.numberProxy);
+            }catch (Exception e) {
+                System.out.println(e.getMessage());
+            }
         }
     }
 
-    class Marshalling extends Thread {
+    class Masking extends Thread {
         private String type;
         private int finalData, indexServer;
         private DataCpuRanking dataCpuRanking;
 
-        public Marshalling(String type, int indexServer, DataCpuRanking dataCpuRanking) {
+        public Masking(String type, int indexServer, DataCpuRanking dataCpuRanking) {
             this.type = type;
             if(this.type.equals("CPU")) this.finalData = 100;
             else this.finalData = 0;
@@ -288,37 +271,15 @@ class Connection extends Thread {
 
         @Override
         public void run(){
-        	File file= new File("mean"+this.indexServer+".txt");
-        	long sleep= 300; 
-            if(file.exists()) {
-            	
-				try {
-					int i = 0;
-					int sum = 0;
-					Scanner scanner = new Scanner(file);
-					while(scanner.hasNext()) {
-                       sum +=scanner.nextInt();
-                       i+=1;
-                    }
-                    scanner.close();
-                    if(sum!=0) {
-                    	sleep=(sum/i);
-                    }
-                    System.out.println("Current waiting time: "+sleep+" ms");
-                    
-					
-				} catch (FileNotFoundException e) {
-					
-					System.out.println(e.getMessage());
-				}
-            	
+            long sleep = 300;
 
-            }else {
-            	System.out.println("The file "+file.getName()+" does not exists");
+            try{
+                sleep = GlobalFunctions.getLatency(this.dataCpuRanking.connection.numberProxy);
+            }catch (Exception e) {
+                System.out.println(e.getMessage());
             }
-        	
+
             try {
-            	
                 Thread.sleep(sleep);
                 if(this.type.equals("RANKING") && !this.dataCpuRanking.done) {
                     this.finalData = 0;
@@ -329,6 +290,8 @@ class Connection extends Thread {
                     this.dataCpuRanking.connection.doDisconnect(this.indexServer);
                 }
             }catch(InterruptedException e){
+                System.out.println(e.getMessage());
+            }catch(Exception e) {
                 System.out.println(e.getMessage());
             }
         }
