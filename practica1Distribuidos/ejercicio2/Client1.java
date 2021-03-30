@@ -121,14 +121,15 @@ public class Client1 {
             auxProxy = GlobalFunctions.getExternalVariables("PORTPROXY" + count);
             if(this.socket == null){
                 this.socket=new Socket("localhost",port);
+                this.socket.setSoTimeout(5000);             //Se establece el time out en 5 segundos
                 this.os = new ObjectOutputStream(this.socket.getOutputStream());
                 this.is = new ObjectInputStream(this.socket.getInputStream());
             }
         }catch(UncheckedIOException e) {
-            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
+            System.out.println(e.getMessage() + ">\n Establishing connection with proxy 2...");
             this.doConnect(auxProxy, count);
         }catch(IOException e) {
-            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
+            System.out.println(e.getMessage() + ">\n Establishing connection with proxy 2...");
             this.doConnect(auxProxy, count);
         }catch(Exception e) {
             System.out.println(e.getMessage());
