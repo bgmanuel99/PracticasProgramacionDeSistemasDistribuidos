@@ -8,9 +8,8 @@ public class Proxy2 {
     public static void main(String[] args) {
         try {
             
-        } catch(IOException e) { 
-            System.out.println("Listen socket: "+ e.getMessage());
         }catch(Exception e) {
             System.out.println(e.getMessage());
         }
+    }
 }

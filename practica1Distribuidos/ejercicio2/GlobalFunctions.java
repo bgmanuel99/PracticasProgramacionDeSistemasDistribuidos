@@ -1,6 +1,7 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.security.MessageDigest;
 import java.util.Scanner;
@@ -58,8 +59,10 @@ public class GlobalFunctions {
     	try {    		
     		File file = new File(name);
     		PrintWriter outputfile = new PrintWriter(file);
-    		if(name.equals("ClientLatency.txt")) {
-    			outputfile.print(500);
+    		if(name.contains("Central")){
+                outputfile.print(500);
+            }else if(name.contains("Client")) {
+    			outputfile.print(1000);
     		}else if(name.contains("Proxy")) {
     			outputfile.print(300);
     		}else if(name.contains("Server")){
@@ -69,5 +72,69 @@ public class GlobalFunctions {
     	}catch (Exception e) {
     		System.out.println(e.getMessage());
     	}
+    }
+
+    static synchronized void setLatency(long latency, int number, String type) throws Exception {
+        File file = new File(type + number + "Latency.txt");
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency += Long.valueOf(scanner.next());
+            }
+            scanner.close();
+            PrintWriter outputFile = new PrintWriter(file);
+            outputFile.print(latency/2);
+            outputFile.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+    }
+
+    static synchronized void setLatency(long latency, int number) throws Exception {
+        File file = new File("Client" + number + "CentralLatency.txt");
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency += Long.valueOf(scanner.next());
+            }
+            scanner.close();
+            PrintWriter outputFile = new PrintWriter(file);
+            outputFile.print(latency/2);
+            outputFile.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+    }
+
+    static synchronized long getLatency(int number, String type) throws Exception {
+        File file = new File(type + number + "Latency.txt");
+        long latency = 0;
+        if(type.equals("Proxy")) latency = 300;
+        else latency = 1000;
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency = Long.valueOf(scanner.next());
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+        return latency;
+    }
+
+    static synchronized long getLatency(int number) throws Exception {
+        File file = new File("Client" + number + "CentralLatency.txt");
+        long latency = 500;
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency = Long.valueOf(scanner.next());
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+        return latency;
     }
 }
