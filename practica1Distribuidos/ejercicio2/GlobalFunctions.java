@@ -1,7 +1,9 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
 
 import java.io.File;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
+import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.Scanner;
 import javax.crypto.Cipher;
@@ -9,7 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class GlobalFunctions {
     static Cipher getCipher(boolean allowEncrypt) throws Exception {
-        final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873ÂºkxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
+        final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873ºkxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         digest.update(private_key.getBytes("UTF-8"));
         final SecretKeySpec key = new SecretKeySpec(digest.digest(), 0, 16, "AES");
@@ -58,8 +60,10 @@ public class GlobalFunctions {
     	try {    		
     		File file = new File(name);
     		PrintWriter outputfile = new PrintWriter(file);
-    		if(name.equals("ClientLatency.txt")) {
-    			outputfile.print(500);
+    		if(name.contains("Central")){
+                outputfile.print(500);
+            }else if(name.contains("Client")) {
+    			outputfile.print(1000);
     		}else if(name.contains("Proxy")) {
     			outputfile.print(300);
     		}else if(name.contains("Server")){
@@ -70,4 +74,102 @@ public class GlobalFunctions {
     		System.out.println(e.getMessage());
     	}
     }
+
+    static synchronized void setLatency(long latency, int number, String type) throws Exception {
+        File file = new File(type + number + "Latency.txt");
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency += Long.valueOf(scanner.next());
+            }
+            scanner.close();
+            PrintWriter outputFile = new PrintWriter(file);
+            outputFile.print(latency/2);
+            outputFile.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+    }
+
+    static synchronized void setLatency(long latency, int number) throws Exception {
+        File file = new File("Client" + number + "CentralLatency.txt");
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency += Long.valueOf(scanner.next());
+            }
+            scanner.close();
+            PrintWriter outputFile = new PrintWriter(file);
+            outputFile.print(latency/2);
+            outputFile.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+    }
+
+    static synchronized long getLatency(int number, String type) throws Exception {
+        File file = new File(type + number + "Latency.txt");
+        long latency = 0;
+        if(type.equals("Proxy")) latency = 300;
+        else latency = 1000;
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency = Long.valueOf(scanner.next());
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+        return latency;
+    }
+
+    static synchronized long getLatency(int number) throws Exception {
+        File file = new File("Client" + number + "CentralLatency.txt");
+        long latency = 500;
+        if(file.exists()){
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                latency = Long.valueOf(scanner.next());
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+        return latency;
+    }
+
+    static synchronized void insertUser(String userName, Socket socket) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.insertUser(userName, socket);
+    }
+    static synchronized void insertOs(String userName, ObjectOutputStream os) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.insertOs(userName, os);
+    }
+
+    static synchronized void deleteUser(String userName) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.deleteUser(userName);
+    }
+
+    static synchronized Socket getSocket(String userName) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getSocket(userName);
+    }
+
+    static synchronized Socket [] getContacts(String[] contacts) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getContacts(contacts);
+    }
+    static synchronized ObjectOutputStream getOs(String name) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getOs(name);
+    }
+    
+    static synchronized ObjectOutputStream [] getOsContacts(String[] contacts) throws NullPointerException{
+    	UserTable users = UserTable.getInstance();
+        return users.getOsContacts(contacts);
+    }
+    
 }

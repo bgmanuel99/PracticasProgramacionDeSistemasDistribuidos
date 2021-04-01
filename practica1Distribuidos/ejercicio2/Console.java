@@ -1,4 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
 import java.io.*;
 
@@ -81,4 +82,25 @@ public class Console {
 
         return message;
     }
+    
+    public String[] getCommandBroadcasting() {
+    	String [] message= null;
+        try{
+        	System.out.print("How many users?: ");
+        	int size = Integer.valueOf(this.br.readLine());
+        	
+        	message = new String[Integer.valueOf(size)];
+            for(int i = 0; i<size;i++) {
+            	System.out.println("What contact...?");
+            	message [i]=this.br.readLine();
+            }
+        }catch(Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+        return message;
+
+    }
+    
+    
+    
 }

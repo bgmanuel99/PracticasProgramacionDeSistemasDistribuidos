@@ -1,6 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
-
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+package ejercicio2;
+import protocol.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,35 +12,48 @@ import java.util.Scanner;
 public class Client1 {
     public final String version = "1.0";
 
-    private Socket socket;
-    private ObjectOutputStream os;
-    private ObjectInputStream is;
+    private Socket socket, centralSocket;
+    private ObjectOutputStream os, centralOs;
+    private ObjectInputStream is, centralIs;
     private Console console;
     private boolean done;
     private int maxProxy = 0;
+    private String nick;
+    private long start, end;
+    private int numberClient;
 
-    public static void main(String[] args) {
-        GlobalFunctions.initFile("ClientLatency.txt");
+	public static void main(String[] args) {
+        GlobalFunctions.initFile("Client1CentralLatency.txt");
+        GlobalFunctions.initFile("Client2CentralLatency.txt");
+        GlobalFunctions.initFile("Client1Latency.txt");
+        GlobalFunctions.initFile("Client2Latency.txt");
     	GlobalFunctions.initFile("Server1Ranking.txt");
     	GlobalFunctions.initFile("Server2Ranking.txt");
     	GlobalFunctions.initFile("Proxy1Latency.txt");
     	GlobalFunctions.initFile("Proxy2Latency.txt");
-        new Client1();
+        new Client1(1);
     }
 
-    public void init() {
+    public void init(int numberClient) {
         try{
+            this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER1"));
+            this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
+            this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
             this.console = new Console(this.version);
             this.done = false;
             this.maxProxy = GlobalFunctions.getExternalVariables("MAXPROXY");
+            this.nick = "";
+            start = 0;
+            end = 0;
+            this.numberClient = numberClient;
             new Messages(this);
         }catch(Exception e) {
             System.out.println(e.getMessage());
         }
     }
 
-    public Client1(){
-        this.init();
+    public Client1(int numberClient){
+        this.init(numberClient);
 
         if(this.maxProxy != 0){
             String cmd = this.console.getCommand();
@@ -53,23 +65,36 @@ public class Client1 {
                         this.console.writeMessage("This is your user name and password: " + credentials[0] + " " + credentials[1]);
                         this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
                         this.doRegister(credentials);
+                        this.doDisconnect();
                     }else if(cmd.equals("login")) {
-                        String [] credentials = this.console.getCommandLogin();
-                        this.console.writeMessage("This are your credentials: " + credentials[0] + " " + credentials[1]);
-                        this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
-                        this.doLogin(credentials);
+                        if(this.nick == ""){
+                            String [] credentials = this.console.getCommandLogin();
+                            this.console.writeMessage("This are your credentials: " + credentials[0] + " " + credentials[1]);
+                            this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
+                            this.doLogin(credentials);
+                            this.doDisconnect();
+                        }else throw new Exception("There is another user connected");
                     }else if(cmd.equals("message")) {
                         String [] message = this.console.getCommandMessage();
                         this.console.writeMessage("This is yout message: " + message[0] + ", and this is the person you wanna send it: " + message[1]);
                         this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
                         this.doSendMessage(message);
+                        this.doDisconnect();
                     }else if(cmd.equals("broadcasting")) {
-                        this.console.writeMessage("Making the broadcast to your contacts...");
-                        this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
-                        this.doBroadcasting();
+                        if(this.nick != "") {
+                        	String [] contacts = this.console.getCommandBroadcasting();
+                            this.console.writeMessage("Making the broadcast to your contacts...");
+                            this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
+                            this.doBroadcasting(contacts);
+                            this.doDisconnect();
+                        }else throw new Exception("If you dont connect you can not broadcast, is logical");
                     }else if(cmd.equals("logout")) {
-                        this.console.writeMessage("Disconnecting from the client...");
-                        break;
+                        if(this.nick != ""){
+                            this.doLogout();
+                            this.nick = "";
+                            this.console.writeMessage("Disconnecting from the client...");
+                            break;
+                        }else throw new Exception("You were already disconnected");
                     }
                 }catch(Exception e) {
                     System.out.println(e.getMessage());
@@ -84,14 +109,24 @@ public class Client1 {
 
     private void doRegister(String [] credentials) {
         try {
+        	this.start = System.currentTimeMillis();
             ControlRequest cr = new ControlRequest("OP_REGISTER");
             cr.getArgs().add(GlobalFunctions.encryptMessage(credentials[0]));
             cr.getArgs().add(GlobalFunctions.encryptMessage(credentials[1]));
 
             this.os.writeObject(cr);
-
-            Thread inactiveProxy = new Thread(new InactiveProxy(this));
+            
+            Thread inactiveProxy = new Thread(new InactiveProxy1(this));
             inactiveProxy.start();
+
+            ControlResponse crs = (ControlResponse) this.is.readObject();
+            this.done=true;
+            
+            this.console.writeMessage(crs.getArgs().get(0).toString());
+
+            this.end = System.currentTimeMillis();
+            GlobalFunctions.setLatency((this.end-this.start), this.numberClient, "Client");
+            this.resetCurrentTime();
         }catch(ClassNotFoundException e) {
             System.out.println(e.getMessage());
         }catch(IOException e) {
@@ -102,18 +137,92 @@ public class Client1 {
     }
 
     private void doLogin(String [] credentials) {
+        try {
+            this.start = System.currentTimeMillis();
+            ControlRequest cr = new ControlRequest("OP_LOGIN");
+            cr.getArgs().add(GlobalFunctions.encryptMessage(credentials[0]));
+            cr.getArgs().add(GlobalFunctions.encryptMessage(credentials[1]));
 
+            this.os.writeObject(cr);
+            this.nick = credentials[0];
+
+            Thread inactiveProxy = new Thread(new InactiveProxy1(this));
+            inactiveProxy.start();
+
+            ControlResponse crs = (ControlResponse) this.is.readObject();
+            this.done=true;
+
+            this.end = System.currentTimeMillis();
+            GlobalFunctions.setLatency((this.end-this.start), this.numberClient, "Client");
+            this.resetCurrentTime();
+
+            this.start = System.currentTimeMillis();
+            ControlRequest centralCr = new ControlRequest("OP_MAP");
+            centralCr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
+            this.centralOs.writeObject(centralCr);
+
+            Thread inactiveCentral = new Thread(new InactiveCentral1(this));
+            inactiveCentral.start();
+            
+            this.console.writeMessage(crs.getArgs().get(0).toString());
+        }catch(ClassNotFoundException e) {
+            System.out.println(e.getMessage());
+        }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+            this.nick = "";
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
     }
 
-    private void doBroadcasting() {
+    private void doBroadcasting(String[] contacts) {
+        try {
+        	
+        	ControlRequest cr = new ControlRequest("OP_BROADCASTING");
+        	cr.getArgs().add(contacts);
+        	cr.getArgs().add(this.nick);
+            this.centralOs.writeObject(cr);
 
+            Thread inactiveCentral = new Thread(new InactiveCentral1(this));
+            inactiveCentral.start();
+        }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
     }
 
     private void doSendMessage(String [] message) {
+        try {
+            ControlRequest cr = new ControlRequest("OP_MESSAGE");
+            cr.getArgs().add(GlobalFunctions.encryptMessage(message[0]));
+            cr.getArgs().add(GlobalFunctions.encryptMessage(message[1]));
+            cr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
+            System.out.println(GlobalFunctions.encryptMessage(message[0].toString()));
+            this.centralOs.writeObject(cr);
 
+            Thread inactiveCentral = new Thread(new InactiveCentral1(this));
+            inactiveCentral.start();
+        }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
     }
 
-    private void doConnect(int port,int count){
+    private void doLogout() {
+        try{
+            this.centralOs.writeObject(new ControlRequest("OP_LOGOUT"));
+
+            GlobalFunctions.deleteUser(this.nick);
+        }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
+    }
+
+    public void doConnect(int port, int count){
         int auxProxy = 0;
         try {
             if(count > this.maxProxy) throw new Exception("All the proxys are disconnected");
@@ -121,22 +230,22 @@ public class Client1 {
             auxProxy = GlobalFunctions.getExternalVariables("PORTPROXY" + count);
             if(this.socket == null){
                 this.socket=new Socket("localhost",port);
-                this.socket.setSoTimeout(5000);             //Se establece el time out en 5 segundos
+                
                 this.os = new ObjectOutputStream(this.socket.getOutputStream());
                 this.is = new ObjectInputStream(this.socket.getInputStream());
             }
         }catch(UncheckedIOException e) {
-            System.out.println(e.getMessage() + ">\n Establishing connection with proxy 2...");
+            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
             this.doConnect(auxProxy, count);
         }catch(IOException e) {
-            System.out.println(e.getMessage() + ">\n Establishing connection with proxy 2...");
+            System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
             this.doConnect(auxProxy, count);
         }catch(Exception e) {
             System.out.println(e.getMessage());
         }
     }
 
-    private void doDisconnect(){
+    public void doDisconnect(){
         if(this.socket!=null){
             try{
                 this.os.close();
@@ -153,6 +262,11 @@ public class Client1 {
             	System.out.println(e.getMessage());
             }
         }
+    }
+
+    public void resetCurrentTime() {
+        this.start = 0;
+        this.end = 0;
     }
 
     public Socket getSocket() {
@@ -207,12 +321,64 @@ public class Client1 {
         this.maxProxy = maxProxy;
     }
 
-    public void connect(int port, int count){
-        this.doConnect(port, count);
+    public String getVersion() {
+        return this.version;
     }
-    public void disconnect(){
-    	System.out.println("1");
-        this.doDisconnect();
+
+    public String getNick() {
+        return this.nick;
+    }
+
+    public void setNick(String nick) {
+        this.nick = nick;
+    }
+    
+    public long getStart() {
+		return this.start;
+	}
+
+	public void setStart(long start) {
+		this.start = start;
+	}
+
+	public long getEnd() {
+		return this.end;
+	}
+
+	public void setEnd(long end) {
+		this.end = end;
+	}
+	
+	public int getNumberClient() {
+		return numberClient;
+	}
+
+	public void setNumberClient(int numberClient) {
+		this.numberClient = numberClient;
+	}
+
+    public Socket getCentralSocket() {
+        return centralSocket;
+    }
+
+    public void setCentralSocket(Socket centralSocket) {
+        this.centralSocket = centralSocket;
+    }
+
+    public ObjectOutputStream getCentralOs() {
+        return centralOs;
+    }
+
+    public void setCentralOs(ObjectOutputStream centralOs) {
+        this.centralOs = centralOs;
+    }
+
+    public ObjectInputStream getCentralIs() {
+        return centralIs;
+    }
+
+    public void setCentralIs(ObjectInputStream centralIs) {
+        this.centralIs = centralIs;
     }
 }
 
@@ -226,69 +392,93 @@ class Messages extends Thread {
     
     @Override
     public void run() {
-        while(true){
+    	while(true){
         	try{
-                if(this.client.getSocket()==null){
-                    this.client.connect(GlobalFunctions.getExternalVariables("PORTPROXY1"),1);
-                }
-                System.out.print("Waiting...");
-                ControlResponse crs = (ControlResponse) this.client.getIs().readObject();
-                this.client.setDone(true);
-                System.out.println("Hilo uno: " + this.client.getDone());
+                ControlResponse crs = (ControlResponse) this.client.getCentralIs().readObject();
                 
-                if(crs.getSubtype().equals("LOGIN_OK")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("LOGIN_NOK")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("LOGOUT_OK")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("NEW_MESSAGE")){
-
-                }else if(crs.getSubtype().equals("CONTACT_CONNECTED")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("REGISTER_OK")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("REGISTER_NOK")){
-                    this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
+                this.client.setDone(true);
+                
+                if(crs.getSubtype().equals("LOGIN_NOK") || crs.getSubtype().equals("MAP_NOK")) {
+                    this.client.setNick("");
+                }else if(crs.getSubtype().equals("MAP_OK")){
+                   this.client.setEnd(System.currentTimeMillis());
+                   GlobalFunctions.setLatency((this.client.getEnd()-this.client.getStart()), this.client.getNumberClient());
+                   this.client.resetCurrentTime();
+                }else if(crs.getSubtype().equals("OP_MESSAGE")) {
+                	this.client.getConsole().writeMessage("Mensaje recibido de: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
+                	this.client.getConsole().writeMessage(GlobalFunctions.decrypt((byte []) crs.getArgs().get(0)));
+                }else if(crs.getSubtype().equals("OP_BROADCASTING")){
+                	this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 }
-                this.client.disconnect();
+                this.client.setDone(false);
+
             }catch (IOException e) {
-            	System.out.println(e.getMessage());
+                System.out.println("IOException (Messages run): " + e.getMessage());
+                e.printStackTrace();
+                break;
             }catch (Exception e) {
-            	System.out.println(e.getMessage());
+                System.out.println("Exception (Messages run): " + e.getMessage());
             }
         }
     }
 }
 
-class InactiveProxy implements Runnable {
+class InactiveProxy1 implements Runnable {
     private Client1 client;
 
-    public InactiveProxy(Client1 client) {
+    public InactiveProxy1(Client1 client) {
         this.client = client;
     }
 
     @Override
     public void run() {
+    	long sleep = 300;
+
         try{
-            File file = new File("ClientLatency.txt");
-            long latency = 0;
-            if(file.exists()){
-                Scanner scanner = new Scanner(file);
-                while(scanner.hasNext()){
-                    latency = Long.valueOf(scanner.next());
-                }
-                scanner.close();
-            }else {
-                throw new Exception("The file ClientLatency.txt does not exist");
+            sleep = GlobalFunctions.getLatency(this.client.getNumberClient(), "Client");
+        }catch(Exception e) {
+            System.out.println("Exception (Masking run 1): " + e.getMessage());
+        }
+        
+        try{
+            Thread.sleep(sleep);
+            if(!this.client.getDone()) {
+            	this.client.doDisconnect();
+            	GlobalFunctions.setLatency(GlobalFunctions.getLatency(this.client.getNumberClient(), "Client")*2, this.client.getNumberClient(), "Client");
             }
-            Thread.sleep(latency);
-            if(!this.client.getDone()) this.client.disconnect();
             this.client.setDone(false);
         }catch(InterruptedException e){
             System.out.println("Interrupted exception: " + e.getMessage());
         }catch(Exception e){
             System.out.println(e.getMessage());
+        }
+    }
+}
+
+class InactiveCentral1 implements Runnable {
+    private Client1 client;
+
+    public InactiveCentral1(Client1 client) {
+        this.client = client;
+    }
+
+    @Override
+    public void run() {
+        long sleep = 500;
+
+        try {
+            sleep=GlobalFunctions.getLatency(this.client.getNumberClient());
+        } catch (Exception e) {
+            System.out.println("Exception 1 (InactiveCenter 1 run): " + e.getMessage());
+        }
+
+        try{
+            Thread.sleep(sleep);
+            this.client.setDone(false);
+        }catch(InterruptedException e){
+            System.out.println("InterruptedException (InactiveCenter 1 run): " + e.getMessage());
+        }catch(Exception e){
+            System.out.println("Exception 2 (InactiveCenter 1 run): " + e.getMessage());
         }
     }
 }
