@@ -1,8 +1,8 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.Scanner;
 import javax.crypto.Cipher;
@@ -136,5 +136,25 @@ public class GlobalFunctions {
             throw new Exception("The file " + file.getName() + " does not exist");
         }
         return latency;
+    }
+
+    static synchronized void insertUser(String userName, Socket socket) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.insertUser(userName, socket);
+    }
+
+    static synchronized void deleteUser(String userName) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.deleteUser(userName);
+    }
+
+    static synchronized Socket getSocket(String userName) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getSocket(userName);
+    }
+
+    static synchronized Socket [] getContacts(String[] contacts) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getContacts(contacts);
     }
 }

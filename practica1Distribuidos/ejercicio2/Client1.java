@@ -22,8 +22,8 @@ public class Client1 {
     private int numberClient;
 
 	public static void main(String[] args) {
-        GlobalFunctions.initFile("Client1CenterLatency.txt");
-        GlobalFunctions.initFile("Client2CenterLatency.txt");
+        GlobalFunctions.initFile("Client1CentralLatency.txt");
+        GlobalFunctions.initFile("Client2CentralLatency.txt");
         GlobalFunctions.initFile("Client1Latency.txt");
         GlobalFunctions.initFile("Client2Latency.txt");
     	GlobalFunctions.initFile("Server1Ranking.txt");
@@ -88,6 +88,7 @@ public class Client1 {
                         }else throw new Exception("If you dont connect you can not broadcast, is logical");
                     }else if(cmd.equals("logout")) {
                         if(this.nick != ""){
+                            this.doLogout();
                             this.nick = "";
                             this.console.writeMessage("Disconnecting from the client...");
                             break;
@@ -155,7 +156,7 @@ public class Client1 {
 
             this.start = System.currentTimeMillis();
             ControlRequest centralCr = new ControlRequest("OP_MAP");
-            centralCr.getArgs().add(this.nick);
+            centralCr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
             this.centralOs.writeObject(centralCr);
 
             Thread inactiveCentral = new Thread(new InactiveCentral1(this));
@@ -174,12 +175,10 @@ public class Client1 {
 
     private void doBroadcasting() {
         try {
-            ControlRequest cr = new ControlRequest("OP_BROADCASTING");
-            cr.getArgs().add(this.nick);
-            this.os.writeObject(cr);
+            this.centralOs.writeObject(new ControlRequest("OP_BROADCASTING").getArgs().add(this.nick));
 
-            Thread inactiveProxy = new Thread(new InactiveProxy1(this));
-            inactiveProxy.start();
+            Thread inactiveCentral = new Thread(new InactiveCentral1(this));
+            inactiveCentral.start();
         }catch(IOException e) {
         	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
         }catch (Exception e) {
@@ -189,13 +188,25 @@ public class Client1 {
 
     private void doSendMessage(String [] message) {
         try {
-            ControlRequest cr = new ControlRequest("OP_MESSAG");
+            ControlRequest cr = new ControlRequest("OP_MESSAGE");
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[0]));
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[1]));
-            this.os.writeObject(cr);
+            this.centralOs.writeObject(cr);
 
-            Thread inactiveProxy = new Thread(new InactiveProxy1(this));
-            inactiveProxy.start();
+            Thread inactiveCentral = new Thread(new InactiveCentral1(this));
+            inactiveCentral.start();
+        }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
+    }
+
+    private void doLogout() {
+        try{
+            this.centralOs.writeObject(new ControlRequest("OP_LOGOUT"));
+
+            GlobalFunctions.deleteUser(this.nick);
         }catch(IOException e) {
         	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
         }catch (Exception e) {
@@ -376,6 +387,7 @@ class Messages extends Thread {
         while(true){
         	try{
                 ControlResponse crs = (ControlResponse) this.client.getCentralIs().readObject();
+                
                 this.client.setDone(true);
                 
                 if(crs.getSubtype().equals("LOGIN_NOK") || crs.getSubtype().equals("MAP_NOK")) {
@@ -390,6 +402,7 @@ class Messages extends Thread {
                 this.client.setDone(false);
             }catch (IOException e) {
                 System.out.println("IOException (Messages run): " + e.getMessage());
+                break;
             }catch (Exception e) {
                 System.out.println("Exception (Messages run): " + e.getMessage());
             }
