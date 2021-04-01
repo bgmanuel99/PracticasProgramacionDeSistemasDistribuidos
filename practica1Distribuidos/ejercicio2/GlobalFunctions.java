@@ -1,6 +1,7 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import java.io.File;
+import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.security.MessageDigest;
@@ -10,7 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class GlobalFunctions {
     static Cipher getCipher(boolean allowEncrypt) throws Exception {
-        final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873ºkxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
+        final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873�kxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         digest.update(private_key.getBytes("UTF-8"));
         final SecretKeySpec key = new SecretKeySpec(digest.digest(), 0, 16, "AES");
@@ -142,6 +143,11 @@ public class GlobalFunctions {
         UserTable users = UserTable.getInstance();
         users.insertUser(userName, socket);
     }
+    
+    static synchronized void insertOs(String userName, ObjectOutputStream os) throws NullPointerException {
+        UserTable users = UserTable.getInstance();
+        users.insertOs(userName, os);
+    }
 
     static synchronized void deleteUser(String userName) throws NullPointerException {
         UserTable users = UserTable.getInstance();
@@ -156,5 +162,15 @@ public class GlobalFunctions {
     static synchronized Socket [] getContacts(String[] contacts) throws NullPointerException{
         UserTable users = UserTable.getInstance();
         return users.getContacts(contacts);
+    }
+
+    static synchronized ObjectOutputStream getOs(String name) throws NullPointerException{
+        UserTable users = UserTable.getInstance();
+        return users.getOs(name);
+    }
+    
+    static synchronized ObjectOutputStream [] getOsContacts(String[] contacts) throws NullPointerException{
+    	UserTable users = UserTable.getInstance();
+        return users.getOsContacts(contacts);
     }
 }

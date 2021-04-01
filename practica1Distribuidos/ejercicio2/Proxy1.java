@@ -36,7 +36,6 @@ class Connection extends Thread {
     private ObjectInputStream [] is;
     private Socket [] sockets;
     private int numberOfServers, numberProxy;
-    private boolean error;
     private int [] dataCpu;
 
     public Connection(Socket clientSocket, int numberServers, int numberProxy) throws Exception {
@@ -56,17 +55,18 @@ class Connection extends Thread {
             }
             this.dataCpu = new int[this.numberOfServers];
             for(int i = 0; i < this.dataCpu.length; i++) dataCpu[i] = 0;
-            this.error = false;
             this.numberProxy = numberProxy;
             this.start();
         }catch(IOException e) {
             System.out.println("Connection(Connection constructor): " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     public void run() {
         try{
             Request r = (Request) this.is[0].readObject();
+            System.out.println("hi");
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
                 if(cr.getSubtype().equals("OP_REGISTER")) {
@@ -114,7 +114,9 @@ class Connection extends Thread {
             if(indexServer != 0){
                 this.os[indexServer].writeObject(cr);
             }else {
-                this.os[0].writeObject(new ControlResponse("REGISTER_NOK").getArgs().add("There are no disponible servers to do the register, try later."));
+                ControlResponse crs = new ControlResponse("REGISTER_NOK");
+                crs.getArgs().add("There are no disponible servers to do the register, try later.");
+                this.os[0].writeObject(crs);
                 return;
             }
             
@@ -130,17 +132,18 @@ class Connection extends Thread {
 
     private void doLogin(byte [] user, byte [] password){
         try{
+        	System.out.println("1");
             DataRequest dr = new DataRequest("OP_CPU");
             for(int i = 1; i <= this.numberOfServers; i++){
                 new DataCPU(this, i, dr);
             }
-
+            System.out.println("2");
             while (true){
                 int done = 0;
                 for(int data : this.dataCpu) if(data!=0) done++;
                 if(done == this.numberOfServers) break;
             }
-            
+            System.out.println("3");
             this.doDisconnect();
             this.doConnect();
 
@@ -160,11 +163,15 @@ class Connection extends Thread {
             if(indexServer != 0){
                 this.os[indexServer].writeObject(cr);
             }else {
-                this.os[0].writeObject(new ControlResponse("LOGIN_NOK").getArgs().add("There are no disponible servers to do the log in, try later."));
+                ControlResponse crs = new ControlResponse("LOGIN_NOK");
+                crs.getArgs().add("There are no disponible servers to do the log in, try later.");
+                this.os[0].writeObject(crs);
                 return;
             }
+            System.out.println("4");
 
             ControlResponse crs = (ControlResponse) this.is[1].readObject();
+            System.out.println("5");
             this.os[0].writeObject(crs);
         }catch(IOException e) {
             System.out.println("IOException (doLogin): " + e.getMessage());

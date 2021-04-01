@@ -2,11 +2,13 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class Client1 {
     public final String version = "1.0";
@@ -81,9 +83,10 @@ public class Client1 {
                         this.doDisconnect();
                     }else if(cmd.equals("broadcasting")) {
                         if(this.nick != "") {
+                        	String [] contacts = this.console.getCommandBroadcasting();
                             this.console.writeMessage("Making the broadcast to your contacts...");
                             this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
-                            this.doBroadcasting();
+                            this.doBroadcasting(contacts);
                             this.doDisconnect();
                         }else throw new Exception("If you dont connect you can not broadcast, is logical");
                     }else if(cmd.equals("logout")) {
@@ -173,9 +176,13 @@ public class Client1 {
 		}
     }
 
-    private void doBroadcasting() {
+    private void doBroadcasting(String[] contacts) {
         try {
-            this.centralOs.writeObject(new ControlRequest("OP_BROADCASTING").getArgs().add(this.nick));
+        	
+        	ControlRequest cr = new ControlRequest("OP_BROADCASTING");
+        	cr.getArgs().add(contacts);
+        	cr.getArgs().add(this.nick);
+            this.centralOs.writeObject(cr);
 
             Thread inactiveCentral = new Thread(new InactiveCentral1(this));
             inactiveCentral.start();
@@ -191,6 +198,8 @@ public class Client1 {
             ControlRequest cr = new ControlRequest("OP_MESSAGE");
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[0]));
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[1]));
+            cr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
+            System.out.println(GlobalFunctions.encryptMessage(message[0].toString()));
             this.centralOs.writeObject(cr);
 
             Thread inactiveCentral = new Thread(new InactiveCentral1(this));
@@ -384,7 +393,7 @@ class Messages extends Thread {
     
     @Override
     public void run() {
-        while(true){
+    	while(true){
         	try{
                 ControlResponse crs = (ControlResponse) this.client.getCentralIs().readObject();
                 
@@ -396,12 +405,17 @@ class Messages extends Thread {
                    this.client.setEnd(System.currentTimeMillis());
                    GlobalFunctions.setLatency((this.client.getEnd()-this.client.getStart()), this.client.getNumberClient());
                    this.client.resetCurrentTime();
+                }else if(crs.getSubtype().equals("OP_MESSAGE")) {
+                	this.client.getConsole().writeMessage("Mensaje recibido de: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
+                	this.client.getConsole().writeMessage(GlobalFunctions.decrypt((byte []) crs.getArgs().get(0)));
+                }else if(crs.getSubtype().equals("OP_BROADCASTING")){
+                	this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 }
-
-                this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 this.client.setDone(false);
+
             }catch (IOException e) {
                 System.out.println("IOException (Messages run): " + e.getMessage());
+                e.printStackTrace();
                 break;
             }catch (Exception e) {
                 System.out.println("Exception (Messages run): " + e.getMessage());

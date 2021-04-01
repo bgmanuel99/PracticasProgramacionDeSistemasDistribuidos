@@ -1,9 +1,10 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+
 import java.net.*;
-import java.util.Random;
 import java.io.*;
+import java.util.Random;
 
 public class Server2 {
     public static void main(String[] args) {

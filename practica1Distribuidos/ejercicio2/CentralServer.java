@@ -1,7 +1,7 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
-
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+
 import java.net.*;
 import java.util.ArrayList;
 import java.io.*;
@@ -47,32 +47,44 @@ class  ConnectionCentral extends Thread{
 
     @Override
     public void run() {
-        try{
-            Request r = (Request) this.is.readObject();
-            if(r.getType().equals("CONTROL_REQUEST")) {
-                ControlRequest cr = (ControlRequest) r;
-                if(cr.getSubtype().equals("OP_MAP")) {
-                    this.doMap((byte []) cr.getArgs().get(0));
-                }else if(cr.getSubtype().equals("OP_MESSAGE")) {
-                    this.doMessage((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1));
-                    if(error) this.os.writeObject(new ControlResponse("MESSAGE_NOK").getArgs().add("Your message has not been received"));
-                }else if(cr.getSubtype().equals("OP_BROADCASTING")) {
-                    this.doBroadcasting(cr.getArgs());
-                    this.os.writeObject(new ControlResponse("BROADCASTING_OK").getArgs().add("The broadcast was correct"));
-                }else if(cr.getSubtype().equals("OP_LOGOUT")) {
-                    this.doDisconnect();
+        while(true) {
+        	try{
+                Request r = (Request) this.is.readObject();
+                if(r.getType().equals("CONTROL_REQUEST")) {
+                    ControlRequest cr = (ControlRequest) r;
+                    System.out.println(cr.getSubtype());
+                    if(cr.getSubtype().equals("OP_MAP")) {
+                        this.doMap((byte []) cr.getArgs().get(0));
+                    }else if(cr.getSubtype().equals("OP_MESSAGE")) {
+                        this.doMessage((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1),(byte []) cr.getArgs().get(2));
+                        if(error) {
+                            ControlResponse crs = new ControlResponse("MESSAGE_NOK");
+                            crs.getArgs().add("Your message has not been received");
+                            this.os.writeObject(crs);
+                        }
+                    }else if(cr.getSubtype().equals("OP_BROADCASTING")) {
+                        this.doBroadcasting(cr.getArgs());
+                        ControlResponse crs =new ControlResponse("BROADCASTING_OK");
+                        crs.getArgs().add("The broadcast was correct");
+                        this.os.writeObject(crs);
+                    }else if(cr.getSubtype().equals("OP_LOGOUT")) {
+                        this.doDisconnect();
+                    }
                 }
-            }
-        }catch(ClassNotFoundException e) {
-			System.out.println("ClassNotFoundException: " + e.getMessage());
-		}catch(IOException e) {
-			System.out.println("Readline run function: " + e.getMessage());
-		}
+            }catch(ClassNotFoundException e) {
+    			System.out.println("ClassNotFoundException: " + e.getMessage());
+    		}catch(IOException e) {
+    			System.out.println("Readline run function: " + e.getMessage());
+    			break;
+    		}
+        }
     }
 
     private void doMap(byte [] user) {
         try{
             GlobalFunctions.insertUser(GlobalFunctions.decrypt(user), this.socket);
+            GlobalFunctions.insertOs(GlobalFunctions.decrypt(user), this.os);
+           
         }catch(IOException e) {
             System.out.println("IOException (doMap): " + e.getMessage());
         }catch(Exception e) {
@@ -80,56 +92,51 @@ class  ConnectionCentral extends Thread{
         }
     }
 
-    private void doMessage(byte [] message, byte [] user) {
+    private void doMessage(byte [] message, byte [] user, byte [] from) {
         try{
+        	System.out.println("1");
             Socket socket = GlobalFunctions.getSocket(GlobalFunctions.decrypt(user));
-            ObjectOutputStream osClient = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream isClient = new ObjectInputStream(socket.getInputStream());
-
+            System.out.println("2");
+            ObjectOutputStream osClient = GlobalFunctions.getOs(GlobalFunctions.decrypt(user));
+            System.out.println("3");
             ControlResponse cr = new ControlResponse("OP_MESSAGE");
             cr.getArgs().add(message);
-            cr.getArgs().add(user);
+            cr.getArgs().add(from);
 
             osClient.writeObject(cr);
             
-            Thread inactiveClient = new Thread(new InactiveClient(this, socket, osClient, isClient));
-            inactiveClient.start();
+            //Thread inactiveClient = new Thread(new InactiveClient(this, socket, osClient));
+            //inactiveClient.start();
             
-            ControlResponse crs = (ControlResponse) isClient.readObject();
-
-            this.os.writeObject(crs);
+            
         }catch(IOException e) {
-            System.out.println("IOException (doMap): " + e.getMessage());
+            System.out.println("IOException (doMessage): " + e.getMessage());
             this.error = true;
         }catch(Exception e) {
-            System.out.println("Exception (doMap): " + e.getMessage());
+            System.out.println("Exception (doMessage): " + e.getMessage());
+            e.printStackTrace();
             this.error = true;
         }
     }
 
     private void doBroadcasting(ArrayList users) {
         try{
-            byte [][] encryptContacts = new byte [users.size()][];
-            for(int i = 0; i < users.size(); i++){
-                encryptContacts[i] = (byte []) users.get(i);
-            }
+            String [] user = (String []) users.get(0);
 
-            String [] contacts = new String [encryptContacts.length];
-            for(int i = 0; i < encryptContacts.length-1; i++) {
-                contacts[i] = GlobalFunctions.decrypt(encryptContacts[i]);
-            }
+            String nick = users.get(1).toString();
 
-            String nick = GlobalFunctions.decrypt(encryptContacts[encryptContacts.length-1]);
-
-            Socket [] contactSocket = GlobalFunctions.getContacts(contacts);
-            for(Socket socket : contactSocket) {
-                Thread broadcast = new Thread(new Broadcast(socket, nick));
-                broadcast.start();
+            Socket [] contactSocket = GlobalFunctions.getContacts(user);
+            ObjectOutputStream [] contactOs= GlobalFunctions.getOsContacts(user);
+            
+            for(int i = 0; i < user.length; i++) {
+            	System.out.println(user[i]);
+            	ControlResponse crs = new ControlResponse("OP_BROADCASTING");
+            	crs.getArgs().add("New user online "+nick);
+                contactOs[i].writeObject(crs);
             }
-        }catch(IOException e) {
-            System.out.println("IOException (doMap): " + e.getMessage());
         }catch(Exception e) {
-            System.out.println("Exception (doMap): " + e.getMessage());
+            System.out.println("Exception (doBroadcasting): " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -180,13 +187,11 @@ class  ConnectionCentral extends Thread{
         }
     }
 
-    public void doDisconnect(Socket socketClient, ObjectOutputStream osClient, ObjectInputStream isClient){
+    public void doDisconnect(Socket socketClient, ObjectOutputStream osClient){
         if(socketClient !=null){
             try {
                 osClient.close();
                 osClient = null;
-                isClient.close();
-                isClient = null;
                 socketClient.close();
                 socketClient = null;
                 this.error = false;
@@ -197,26 +202,20 @@ class  ConnectionCentral extends Thread{
     }
 
     class Broadcast implements Runnable {
-        private Socket clientSocket;
-        private ObjectInputStream isClient;
         private ObjectOutputStream osClient;
         private String nick;
 
-        public Broadcast(Socket clientSocket, String nick) {
-            try{
-                this.clientSocket = clientSocket;
-                this.isClient = new ObjectInputStream(this.clientSocket.getInputStream());
-                this.osClient = new ObjectOutputStream(this.clientSocket.getOutputStream());
-                this.nick = nick;
-            }catch(IOException e){
-                System.out.println("IOException (Broadcast): " +e.getMessage());
-            }
+        public Broadcast( String nick, ObjectOutputStream os) {
+			this.osClient = os;
+			this.nick = nick;
+			start();
         }
 
         @Override
         public void run() {
             try{
-                this.osClient.writeObject(new ControlResponse("OP_BROADCASTING").getArgs().add(this.nick));
+            	System.out.println("thread");
+                this.osClient.writeObject(new ControlResponse("OP_BROADCASTING").getArgs().add("Se ha conectado: "+this.nick));
             }catch(Exception e){
                 System.out.println(e.getMessage());
             }
@@ -226,14 +225,13 @@ class  ConnectionCentral extends Thread{
     class InactiveClient implements Runnable{
         private ConnectionCentral connectionCentral;
         private Socket socketClient;
-        private ObjectInputStream isClient;
         private ObjectOutputStream osClient;
 
-        public InactiveClient(ConnectionCentral connectionCentral, Socket socketClient, ObjectOutputStream osClient, ObjectInputStream isClient){
+        public InactiveClient(ConnectionCentral connectionCentral, Socket socketClient, ObjectOutputStream osClient){
             this.connectionCentral = connectionCentral;
             this.socketClient = socketClient;
             this.osClient = osClient;
-            this.isClient = isClient;
+            
         }
 
         @Override
@@ -242,7 +240,7 @@ class  ConnectionCentral extends Thread{
             try {
                 Thread.sleep(sleep);
 
-                if(!this.connectionCentral.done) this.connectionCentral.doDisconnect(socketClient, osClient, isClient);
+                if(!this.connectionCentral.done) this.connectionCentral.doDisconnect(socketClient, osClient);
             } catch(InterruptedException e){
                 System.out.println("Interrupted exception: " + e.getMessage());
             }catch(Exception e){

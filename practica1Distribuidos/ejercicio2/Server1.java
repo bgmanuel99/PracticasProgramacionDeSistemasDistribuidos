@@ -1,6 +1,7 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+
 import java.net.*;
 import java.util.Random;
 import java.io.*;
@@ -11,7 +12,7 @@ public class Server1 {
             ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTSERVER1"));
             
             while(true){
-            	System.out.println("Waiting server 1...");
+            	System.out.println("Waiting server 1... " +listenSocket.getLocalPort());
                 Socket socket = listenSocket.accept();
                 System.out.println("Accepted conexion from: " + socket.getInetAddress().toString());
                    
