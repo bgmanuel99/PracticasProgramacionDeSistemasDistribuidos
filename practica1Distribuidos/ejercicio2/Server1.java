@@ -1,6 +1,6 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
 import java.net.*;
 import java.util.Random;
@@ -48,25 +48,55 @@ class ConnectionServer1 extends Thread{
 
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
+                System.out.println("Request : "+cr.getSubtype());
                 if(cr.getSubtype().equals("OP_REGISTER")){
-                    ControlResponse crs = new ControlResponse("REGISTER_OK");
-                    crs.getArgs().add("Registration succesful");
-                    this.osProxy.writeObject(crs);
+                	
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)))) {
+                		System.out.println("1");
+                		ControlResponse crs = new ControlResponse("REGISTER_NOK");
+                		crs.getArgs().add("Registration has not been completed");
+                		this.osProxy.writeObject(crs);
+                	}else {
+                		System.out.println("2");
+                		GlobalFunctions.addUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)), GlobalFunctions.decrypt((byte [])cr.getArgs().get(1)));
+                		ControlResponse crs = new ControlResponse("REGISTER_OK");
+                		crs.getArgs().add("Registration succesful");
+                		this.osProxy.writeObject(crs);
+                		
+                	}
                 }else if(cr.getSubtype().equals("OP_LOGIN")){
-                    ControlResponse crs = new ControlResponse("LOGIN_OK");
-                    crs.getArgs().add("Log in succesful");
-                    this.osProxy.writeObject(crs);
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)))) {
+                		System.out.println("3");
+                		if(GlobalFunctions.getUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0))).equals(GlobalFunctions.decrypt((byte [])cr.getArgs().get(1)))) {
+                			System.out.println("4");
+                			ControlResponse crs = new ControlResponse("LOGIN_OK");
+                			crs.getArgs().add("Log in succesful");
+                			this.osProxy.writeObject(crs);
+                			
+                		}else {
+                			System.out.println("5");
+                			ControlResponse crs = new ControlResponse("LOGIN_NOK");
+                			crs.getArgs().add("Wrong pass");
+                			this.osProxy.writeObject(crs);
+                			
+                		}
+                	}else {
+                		System.out.println("6");
+                		ControlResponse crs = new ControlResponse("LOGIN_NOK");
+            			crs.getArgs().add("Wrong user");
+            			this.osProxy.writeObject(crs);
+                	}
                 }
             }else if(r.getType().equals("DATA_REQUEST")){
                 DataRequest dr = (DataRequest) r;
                 if(dr.getSubtype().equals("OP_CPU")){
-                ControlResponse crsCPU = new ControlResponse("OP_CPU_OK");
-                Random random = new Random();
-                crsCPU.getArgs().add(random.nextInt(101));
-                this.osProxy.writeObject(crsCPU);
-                this.doDisconnect();
+                    ControlResponse crsCPU = new ControlResponse("OP_CPU_OK");
+                    Random random = new Random();
+                    crsCPU.getArgs().add(random.nextInt(101));
+                    this.osProxy.writeObject(crsCPU);
                 }
             }
+            this.doDisconnect();
         }catch(ClassNotFoundException e) {
             System.out.println("ClassNotFoundException: " + e.getMessage());
         }catch(IOException e) {

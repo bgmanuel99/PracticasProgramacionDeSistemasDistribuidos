@@ -1,6 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
-
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+package ejercicio2;
+import protocol.*;
 
 import java.net.*;
 import java.io.*;
@@ -170,7 +169,7 @@ class Connection extends Thread {
             }
             System.out.println("4");
 
-            ControlResponse crs = (ControlResponse) this.is[1].readObject();
+            ControlResponse crs = (ControlResponse) this.is[indexServer].readObject();
             System.out.println("5");
             this.os[0].writeObject(crs);
         }catch(IOException e) {

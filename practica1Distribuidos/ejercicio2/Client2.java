@@ -1,12 +1,15 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.net.Socket;
+
 
 
 public class Client2 {
@@ -150,6 +153,11 @@ public class Client2 {
             inactiveProxy.start();
 
             ControlResponse crs = (ControlResponse) this.is.readObject();
+            
+            if(crs.getSubtype().equals("LOGIN_NOK")) {
+            	this.console.writeMessage(crs.getArgs().get(0).toString());
+            	return;
+            }
             this.done=true;
 
             this.end = System.currentTimeMillis();
@@ -176,7 +184,7 @@ public class Client2 {
     }
 
     private void doBroadcasting(String[] contacts) {
-try {
+        try {
         	
         	ControlRequest cr = new ControlRequest("OP_BROADCASTING");
         	cr.getArgs().add(contacts);
@@ -213,7 +221,7 @@ try {
     private void doLogout() {
         try{
             this.centralOs.writeObject(new ControlRequest("OP_LOGOUT"));
-
+            
             GlobalFunctions.deleteUser(this.nick);
         }catch(IOException e) {
         	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
@@ -405,7 +413,7 @@ class Messages2 extends Thread {
                    GlobalFunctions.setLatency((this.client.getEnd()-this.client.getStart()), this.client.getNumberClient());
                    this.client.resetCurrentTime();
                 }else if(crs.getSubtype().equals("OP_MESSAGE")) {
-                	this.client.getConsole().writeMessage("Mensaje recibido de: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
+                	this.client.getConsole().writeMessage("Message received from: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
                 	this.client.getConsole().writeMessage(GlobalFunctions.decrypt((byte []) crs.getArgs().get(0)));
                 }else if(crs.getSubtype().equals("OP_BROADCASTING")){
                 	this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
@@ -414,7 +422,7 @@ class Messages2 extends Thread {
 
             }catch (IOException e) {
                 System.out.println("IOException (Messages run): " + e.getMessage());
-                e.printStackTrace();
+                //e.printStackTrace();
                 break;
             }catch (Exception e) {
                 System.out.println("Exception (Messages run): " + e.getMessage());

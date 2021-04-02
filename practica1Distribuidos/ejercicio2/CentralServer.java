@@ -1,6 +1,6 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
 import java.net.*;
 import java.util.ArrayList;
@@ -114,7 +114,7 @@ class  ConnectionCentral extends Thread{
             this.error = true;
         }catch(Exception e) {
             System.out.println("Exception (doMessage): " + e.getMessage());
-            e.printStackTrace();
+            //e.printStackTrace();
             this.error = true;
         }
     }
@@ -136,7 +136,7 @@ class  ConnectionCentral extends Thread{
             }
         }catch(Exception e) {
             System.out.println("Exception (doBroadcasting): " + e.getMessage());
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 

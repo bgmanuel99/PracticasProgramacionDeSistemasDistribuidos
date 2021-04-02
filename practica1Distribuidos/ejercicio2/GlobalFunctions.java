@@ -1,4 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
 import java.io.File;
 import java.io.ObjectOutputStream;
@@ -54,6 +55,67 @@ public class GlobalFunctions {
         }
         if(name.equals("MAXSERVER")) return 0;
         return 8000;
+    }
+    
+    static  synchronized void addUser(String name, String pass) throws Exception {
+    	String users = "";
+    	File file = new File("Users.txt");
+        if(file.exists()) {
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                users +=scanner.nextLine()+"\n";
+            }
+            scanner.close();
+            PrintWriter outputFile = new PrintWriter(file);
+            outputFile.print(users);
+            outputFile.println(name +" "+pass);
+            outputFile.close();
+        }else {
+            throw new Exception("The file "+file.getName()+" does not exist");
+        }
+        
+        
+    }
+    
+    static  synchronized boolean isUser(String name) throws Exception {
+    	boolean isHere= false;
+    	File file = new File("Users.txt");
+        if(file.exists()) {
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                String [] users = scanner.nextLine().split(" ");
+                System.out.println(users[0] + " "+users[1]);
+                if(users[0].equals(name)) {
+                	System.out.println("Found");
+                	return true;
+                }
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file "+file.getName()+" does not exist");
+        }
+        
+        return isHere;
+    }
+    
+    
+    static  synchronized String getUser(String name) throws Exception {
+    	String pass = "";
+    	File file = new File("Users.txt");
+        if(file.exists()) {
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()){
+                String [] users = scanner.nextLine().split(" ");
+                if(users[0].equals(name)) {
+                	pass = users[1];
+                }
+            }
+            scanner.close();
+        }else {
+            throw new Exception("The file "+file.getName()+" does not exist");
+        }
+        
+        return pass;
     }
 
     static void initFile(String name) {
@@ -152,6 +214,7 @@ public class GlobalFunctions {
     static synchronized void deleteUser(String userName) throws NullPointerException {
         UserTable users = UserTable.getInstance();
         users.deleteUser(userName);
+        
     }
 
     static synchronized Socket getSocket(String userName) throws NullPointerException{

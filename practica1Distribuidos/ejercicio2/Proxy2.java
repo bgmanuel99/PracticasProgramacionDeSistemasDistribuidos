@@ -1,6 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
-
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+package ejercicio2;
+import protocol.*;
 
 import java.net.*;
 import java.io.*;

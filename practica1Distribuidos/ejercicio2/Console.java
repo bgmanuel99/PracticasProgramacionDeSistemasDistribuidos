@@ -1,4 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
 import java.io.*;
 

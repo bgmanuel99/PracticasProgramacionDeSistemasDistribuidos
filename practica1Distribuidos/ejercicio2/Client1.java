@@ -1,6 +1,5 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
-
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+package ejercicio2;
+import protocol.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -145,12 +144,17 @@ public class Client1 {
             cr.getArgs().add(GlobalFunctions.encryptMessage(credentials[1]));
 
             this.os.writeObject(cr);
-            this.nick = credentials[0];
 
             Thread inactiveProxy = new Thread(new InactiveProxy1(this));
             inactiveProxy.start();
 
             ControlResponse crs = (ControlResponse) this.is.readObject();
+            
+            if(crs.getSubtype().equals("LOGIN_NOK")) {
+            	this.console.writeMessage(crs.getArgs().get(0).toString());
+            	return;
+            }
+            this.nick = credentials[0];
             this.done=true;
 
             this.end = System.currentTimeMillis();
@@ -406,7 +410,7 @@ class Messages extends Thread {
                    GlobalFunctions.setLatency((this.client.getEnd()-this.client.getStart()), this.client.getNumberClient());
                    this.client.resetCurrentTime();
                 }else if(crs.getSubtype().equals("OP_MESSAGE")) {
-                	this.client.getConsole().writeMessage("Mensaje recibido de: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
+                	this.client.getConsole().writeMessage("Message received from: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
                 	this.client.getConsole().writeMessage(GlobalFunctions.decrypt((byte []) crs.getArgs().get(0)));
                 }else if(crs.getSubtype().equals("OP_BROADCASTING")){
                 	this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
@@ -415,7 +419,6 @@ class Messages extends Thread {
 
             }catch (IOException e) {
                 System.out.println("IOException (Messages run): " + e.getMessage());
-                e.printStackTrace();
                 break;
             }catch (Exception e) {
                 System.out.println("Exception (Messages run): " + e.getMessage());
