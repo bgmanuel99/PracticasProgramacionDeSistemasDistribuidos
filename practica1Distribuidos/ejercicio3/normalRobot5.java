@@ -11,29 +11,29 @@ import protocol.ControlRequest;
 import protocol.ControlResponse;
 import protocol.Request;
 
-public class normalRobot2 {
+public class normalRobot5 {
 
 	public static void main(String[] args) {
-		new mainRobot2();
+		new mainRobot5();
 
 	}
 
 }
 
 
-class mainRobot2{
+class mainRobot5{
 	
 	private Socket in,  robotRight;
 	private ObjectOutputStream osLeft, osRight;
 	private ObjectInputStream isLeft, isRight;
-	private int node = 2;
+	private int node = 5;
 	
-	public mainRobot2() {
+	public mainRobot5() {
 		while(true) {
 			try {
 				//esperando una llamada entrante
-				ServerSocket listen = new ServerSocket(4002);
-				System.out.println("Robot2 waiting for instructionss");
+				ServerSocket listen = new ServerSocket(4005);
+				System.out.println("Robot5 waiting for instructionss");
 				this.in = listen.accept();
 				System.out.println("Connection accepted from: "+this.in.toString());
 				this.isLeft = new ObjectInputStream(this.in.getInputStream());
@@ -54,15 +54,14 @@ class mainRobot2{
 					}
 					
 				}
-				
+				this.doDisconnect();
 			} catch (Exception e) {
 				// TODO: handle exception
 			}
 		}
 	}
-	
 	public void doConnect() throws UnknownHostException, IOException {
-		this.robotRight = new Socket("localhost",4003);
+		this.robotRight = new Socket("localhost",4006);
 		this.osRight = new ObjectOutputStream(this.robotRight.getOutputStream());
 		this.isRight = new ObjectInputStream(this.robotRight.getInputStream());
 	}
@@ -100,9 +99,10 @@ class mainRobot2{
 			// TODO: handle exception
 		}
 	}
+
 	
 }
 
-class threadRobot2 extends Thread{
-	private mainRobot2 maRobot;
+class threadRobot5 extends Thread{
+	private mainRobot5 maRobot;
 }

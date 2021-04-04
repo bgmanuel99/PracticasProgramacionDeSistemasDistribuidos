@@ -1,9 +1,11 @@
 package ejercicio3;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 import protocol.ControlRequest;
 import protocol.ControlResponse;
@@ -22,60 +24,83 @@ class mainRobot1{
 	private Socket in,  robotRight;
 	private ObjectOutputStream osLeft, osRight;
 	private ObjectInputStream isLeft, isRight;
+	private int node = 1;
 	
 	public mainRobot1() {
 		while(true) {
 			try {
 				//esperando una llamada entrante
 				ServerSocket listen = new ServerSocket(4001);
-				System.out.println("Robot1 esperando instrucciones");
+				System.out.println("Robot1 waiting for instructions");
 				this.in = listen.accept();
-				System.out.println("Connexion acceptada desde la console: "+this.in.toString());
+				System.out.println("Connection accepted from: "+this.in.toString());
 				this.isLeft = new ObjectInputStream(this.in.getInputStream());
 				this.osLeft = new ObjectOutputStream(this.in.getOutputStream());
 				//Esperamos el comando
 				Request r = (Request) this.isLeft.readObject();
 				if(r.getType().equals("CONTROL_REQUEST")) {
 					ControlRequest cr = (ControlRequest) r;
-					System.out.println(cr.getSubtype());
-					//Hemos recibido la orden desde el cliente
-					this.robotRight = new Socket("localhost",4002);
-					this.osRight = new ObjectOutputStream(this.robotRight.getOutputStream());
-					this.isRight = new ObjectInputStream(this.robotRight.getInputStream());
-					this.osRight.writeObject(cr);
 					
-					//esperamos confirmacion
-					System.out.println("Esperando respuesta...");
-					ControlResponse crs = (ControlResponse) this.isRight.readObject();
-					
-					this.osLeft.writeObject(crs);
-					System.out.println("Enviando respuesta");
-					//Hemos transmitido la operacion al siguiente robot del anillo
-					//Cerramos conexiones de nuevo y esperamos nuevas ordenes;
-					if(this.in !=null) {
-						this.in.close();
-						this.in = null;
-						this.osRight.close();
-						this.osRight=null;
-						this.osLeft.close();
-						this.osLeft=null;
-						this.isLeft.close();
-						this.isLeft=null;
-						this.isRight.close();
-						this.isRight=null;
-						this.robotRight.close();
-						this.robotRight = null;
+					if(cr.getSubtype().equals("OP_MOVE")) {
+						this.doConnect();
+						this.osRight.writeObject(cr);
+						ControlResponse cr_ok= new ControlResponse("OP_OK");
+						
+						this.osLeft.writeObject(cr_ok);
+					}else if(cr.getSubtype().equals("OP_STATUS")) {
+						this.doConnect();
+						this.doStatus(cr);
 					}
+					
 				}
+				this.doDisconnect();
 			} catch (Exception e) {
 				// TODO: handle exception
 			}
 		}
 	}
-
+	public void doStatus(ControlRequest cr) throws IOException {
+		try {
+			this.osRight.writeObject(cr);
+			
+			ControlResponse crs =(ControlResponse) this.isRight.readObject();
+			this.osLeft.writeObject(crs);
+			
+		} catch (IOException | ClassNotFoundException e) {
+			ControlResponse crs = new ControlResponse("STATUS_NOK");
+			crs.getArgs().add("The node "+ this.node+1+"is offline");
+			this.osLeft.writeObject(crs);
+		}
+	}
+	public void doConnect() throws UnknownHostException, IOException {
+		this.robotRight = new Socket("localhost",4002);
+		this.osRight = new ObjectOutputStream(this.robotRight.getOutputStream());
+		this.isRight = new ObjectInputStream(this.robotRight.getInputStream());
+	}
+	
+	public void doDisconnect() {
+		try {
+			if(this.in !=null) {
+				this.in.close();
+				this.in = null;
+				this.osRight.close();
+				this.osRight=null;
+				this.osLeft.close();
+				this.osLeft=null;
+				this.isLeft.close();
+				this.isLeft=null;
+				this.isRight.close();
+				this.isRight=null;
+				this.robotRight.close();
+				this.robotRight = null;
+			}
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+	}
 	
 }
 
-class threadRobot2 extends Thread{
+class threadRobot1 extends Thread{
 	private mainRobot maRobot;
 }

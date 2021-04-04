@@ -11,29 +11,29 @@ import protocol.ControlRequest;
 import protocol.ControlResponse;
 import protocol.Request;
 
-public class normalRobot2 {
+public class normalRobot3 {
 
 	public static void main(String[] args) {
-		new mainRobot2();
+		new mainRobot3();
 
 	}
 
 }
 
 
-class mainRobot2{
+class mainRobot3{
 	
 	private Socket in,  robotRight;
 	private ObjectOutputStream osLeft, osRight;
 	private ObjectInputStream isLeft, isRight;
-	private int node = 2;
+	private int node = 3;
 	
-	public mainRobot2() {
+	public mainRobot3() {
 		while(true) {
 			try {
 				//esperando una llamada entrante
-				ServerSocket listen = new ServerSocket(4002);
-				System.out.println("Robot2 waiting for instructionss");
+				ServerSocket listen = new ServerSocket(4003);
+				System.out.println("Robot3 waiting for instructionss");
 				this.in = listen.accept();
 				System.out.println("Connection accepted from: "+this.in.toString());
 				this.isLeft = new ObjectInputStream(this.in.getInputStream());
@@ -54,7 +54,7 @@ class mainRobot2{
 					}
 					
 				}
-				
+				this.doDisconnect();
 			} catch (Exception e) {
 				// TODO: handle exception
 			}
@@ -62,7 +62,7 @@ class mainRobot2{
 	}
 	
 	public void doConnect() throws UnknownHostException, IOException {
-		this.robotRight = new Socket("localhost",4003);
+		this.robotRight = new Socket("localhost",4004);
 		this.osRight = new ObjectOutputStream(this.robotRight.getOutputStream());
 		this.isRight = new ObjectInputStream(this.robotRight.getInputStream());
 	}
@@ -71,9 +71,11 @@ class mainRobot2{
 			this.osRight.writeObject(cr);
 			
 			ControlResponse crs =(ControlResponse) this.isRight.readObject();
+			System.out.println(crs.getSubtype());
 			this.osLeft.writeObject(crs);
 			
 		} catch (IOException | ClassNotFoundException e) {
+			// TODO Auto-generated catch block
 			ControlResponse crs = new ControlResponse("STATUS_NOK");
 			crs.getArgs().add("The node "+ this.node+1+"is offline");
 			this.osLeft.writeObject(crs);
@@ -100,9 +102,10 @@ class mainRobot2{
 			// TODO: handle exception
 		}
 	}
+
 	
 }
 
-class threadRobot2 extends Thread{
-	private mainRobot2 maRobot;
+class threadRobot3 extends Thread{
+	private mainRobot3 maRobot;
 }

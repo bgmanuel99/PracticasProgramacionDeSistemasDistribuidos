@@ -14,7 +14,7 @@ public class Console {
         this.isr = new InputStreamReader(System.in);
         this.br = new BufferedReader(this.isr);
         this.version = version;
-        prompt = "Cliente v " + this.version + "> ";
+        prompt = "Console v " + this.version + "> ";
     }
     
     public synchronized void writeMessage(String msg){

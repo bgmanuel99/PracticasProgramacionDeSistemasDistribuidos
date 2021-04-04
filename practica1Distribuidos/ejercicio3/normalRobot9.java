@@ -11,29 +11,28 @@ import protocol.ControlRequest;
 import protocol.ControlResponse;
 import protocol.Request;
 
-public class normalRobot2 {
+public class normalRobot9 {
 
 	public static void main(String[] args) {
-		new mainRobot2();
+		new mainRobot9();
 
 	}
 
 }
 
 
-class mainRobot2{
+class mainRobot9{
 	
 	private Socket in,  robotRight;
 	private ObjectOutputStream osLeft, osRight;
 	private ObjectInputStream isLeft, isRight;
-	private int node = 2;
 	
-	public mainRobot2() {
+	public mainRobot9() {
 		while(true) {
 			try {
 				//esperando una llamada entrante
-				ServerSocket listen = new ServerSocket(4002);
-				System.out.println("Robot2 waiting for instructionss");
+				ServerSocket listen = new ServerSocket(4009);
+				System.out.println("Robot9 waiting for instructionss");
 				this.in = listen.accept();
 				System.out.println("Connection accepted from: "+this.in.toString());
 				this.isLeft = new ObjectInputStream(this.in.getInputStream());
@@ -43,44 +42,45 @@ class mainRobot2{
 				
 				if(r.getType().equals("CONTROL_REQUEST")) {
 					ControlRequest cr = (ControlRequest) r;
-					
 					if(cr.getSubtype().equals("OP_MOVE")) {
 						this.doConnect();
 						this.osRight.writeObject(cr);
 						//esperamos la confirmacion
-					}else if(cr.getSubtype().equals("OP_STATUS")) {
-						this.doConnect();
+					}
+					if(cr.getSubtype().equals("OP_STATUS")) {
 						this.doStatus(cr);
 					}
 					
 				}
-				
+				this.doDisconnect();
 			} catch (Exception e) {
 				// TODO: handle exception
 			}
 		}
 	}
-	
+
 	public void doConnect() throws UnknownHostException, IOException {
-		this.robotRight = new Socket("localhost",4003);
+		this.robotRight = new Socket("localhost",4000);
 		this.osRight = new ObjectOutputStream(this.robotRight.getOutputStream());
 		this.isRight = new ObjectInputStream(this.robotRight.getInputStream());
 	}
-	public void doStatus(ControlRequest cr) throws IOException {
+	public void doStatus(ControlRequest cr) {
 		try {
-			this.osRight.writeObject(cr);
-			
-			ControlResponse crs =(ControlResponse) this.isRight.readObject();
+			//this.osRight.writeObject(cr);
+			System.out.println("Enviando la respuesta");
+			ControlResponse crs = new ControlResponse("STATUS_OK");
+			System.out.println(crs.getSubtype());
 			this.osLeft.writeObject(crs);
 			
-		} catch (IOException | ClassNotFoundException e) {
-			ControlResponse crs = new ControlResponse("STATUS_NOK");
-			crs.getArgs().add("The node "+ this.node+1+"is offline");
-			this.osLeft.writeObject(crs);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
-	public void doDisconnect() {
+	
+	
+	public void doDisconnect(){
 		try {
 			if(this.in !=null) {
 				this.in.close();
@@ -100,9 +100,8 @@ class mainRobot2{
 			// TODO: handle exception
 		}
 	}
-	
 }
 
-class threadRobot2 extends Thread{
-	private mainRobot2 maRobot;
+class threadRobot9 extends Thread{
+	private mainRobot9 maRobot;
 }
