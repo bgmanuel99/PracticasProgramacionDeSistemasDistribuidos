@@ -37,9 +37,7 @@ public class Client1 {
 
     public void init(int numberClient) {
         try{
-            this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER1"));
-            this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
-            this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
+            this.doConnectCentral(1);
             this.console = new Console(this.version);
             this.done = false;
             this.maxProxy = GlobalFunctions.getExternalVariables("MAXPROXY");
@@ -100,7 +98,7 @@ public class Client1 {
                 }catch(Exception e) {
                     System.out.println(e.getMessage());
                 }
-                
+                this.checkCentral();
                 cmd = this.console.getCommand();
             }
         }
@@ -269,6 +267,37 @@ public class Client1 {
             }
         }
     }
+    
+    public void checkCentral() {
+    	try {
+    		if(this.centralSocket.isClosed()) {
+        		
+    			this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER2"));
+                this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
+                this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
+                if(this.nick!=null) {
+                	ControlRequest centralCr = new ControlRequest("OP_MAP");
+                    centralCr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
+                    this.centralOs.writeObject(centralCr);
+                }
+        	}
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+    }
+    
+    public void doConnectCentral(int count) {
+    	try {
+    		if(count>2)throw new Exception("All the servers are disconnected");
+    		count++;
+    		this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER"+count));
+            this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
+            this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
+		} catch (Exception e) {
+			this.doConnectCentral(count);
+		}
+    }
+    
 
     public void resetCurrentTime() {
         this.start = 0;

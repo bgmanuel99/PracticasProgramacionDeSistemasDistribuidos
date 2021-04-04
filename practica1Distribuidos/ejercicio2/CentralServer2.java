@@ -1,22 +1,22 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package ejercicio2;
+import protocol.*;
 
-import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
 import java.net.*;
 import java.util.ArrayList;
 import java.io.*;
 
-public class CentralServer {
+public class CentralServer2 {
     public static void main(String [] args) {
         try{
-            ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTCENTER1"));
+            ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTCENTER2"));
             
             while(true) {
                 System.out.println("Waiting central server 1...");
                 Socket socket = listenSocket.accept();
                 System.out.println("Accepted conexion from: " + socket.getInetAddress().toString());
 
-                new ConnectionCentral(socket);
+                new ConnectionCentral2(socket);
             }
         }catch(IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
@@ -26,13 +26,13 @@ public class CentralServer {
     }
 }
 
-class  ConnectionCentral extends Thread{
+class  ConnectionCentral2 extends Thread{
     private ObjectOutputStream os;
     private ObjectInputStream is;
     private Socket socket;
     private boolean done, error;
 
-    public ConnectionCentral(Socket socket){
+    public ConnectionCentral2(Socket socket){
         try {
             this.socket = socket;
             this.os = new ObjectOutputStream(this.socket.getOutputStream());
@@ -226,11 +226,11 @@ class  ConnectionCentral extends Thread{
     }
 
     class InactiveClient implements Runnable{
-        private ConnectionCentral connectionCentral;
+        private ConnectionCentral2 connectionCentral;
         private Socket socketClient;
         private ObjectOutputStream osClient;
 
-        public InactiveClient(ConnectionCentral connectionCentral, Socket socketClient, ObjectOutputStream osClient){
+        public InactiveClient(ConnectionCentral2 connectionCentral, Socket socketClient, ObjectOutputStream osClient){
             this.connectionCentral = connectionCentral;
             this.socketClient = socketClient;
             this.osClient = osClient;
