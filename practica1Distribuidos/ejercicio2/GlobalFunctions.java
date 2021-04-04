@@ -10,6 +10,8 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
 public class GlobalFunctions {
+	static UserTable users = UserTable.getInstance();
+	
     static Cipher getCipher(boolean allowEncrypt) throws Exception {
         final String private_key = "idbwidbwjNFJERNFEJNFEJIuhifbewbaicaojopqjpu3873�kxnmknmakKAQIAJ3981276396^=)(/&/(ISJ";
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -43,7 +45,8 @@ public class GlobalFunctions {
     static int getExternalVariables(String name) throws Exception {
         File file = new File("ExternalVariables.txt");
         if(file.exists()) {
-            Scanner scanner = new Scanner(file);
+            @SuppressWarnings("resource")
+			Scanner scanner = new Scanner(file);
             while(scanner.hasNext()){
                 String [] port = scanner.nextLine().split(" ");
                 if(port[0].equals(name)) return Integer.valueOf(port[1]);
@@ -56,65 +59,77 @@ public class GlobalFunctions {
         return 8000;
     }
     
-    static  synchronized void addUser(String name, String pass) throws Exception {
+    static synchronized void addUser(byte [] name, byte [] password) throws Exception {
     	String users = "";
     	File file = new File("Users.txt");
         if(file.exists()) {
             Scanner scanner = new Scanner(file);
             while(scanner.hasNext()){
-                users +=scanner.nextLine()+"\n";
+                users += scanner.nextLine() + "\n";
             }
             scanner.close();
             PrintWriter outputFile = new PrintWriter(file);
             outputFile.print(users);
-            outputFile.println(name +" "+pass);
+            for(int i = 0; i < name.length; i++) {
+            	if(i == name.length-1) outputFile.print(name[i]);
+            	else outputFile.print(name[i] + " ");
+            }
+            outputFile.print("/");
+            for(int i = 0; i < password.length; i++) {
+            	if(i == password.length-1) outputFile.print(password[i]);
+            	else outputFile.print(password[i] + " ");
+            }
             outputFile.close();
         }else {
             throw new Exception("The file "+file.getName()+" does not exist");
         }
-        
-        
     }
     
-    static  synchronized boolean isUser(String name) throws Exception {
-    	boolean isHere= false;
+    static synchronized boolean isUser(String name) throws Exception {
     	File file = new File("Users.txt");
         if(file.exists()) {
-            Scanner scanner = new Scanner(file);
+            @SuppressWarnings("resource")
+			Scanner scanner = new Scanner(file);
             while(scanner.hasNext()){
-                String [] users = scanner.nextLine().split(" ");
-                System.out.println(users[0] + " "+users[1]);
-                if(users[0].equals(name)) {
-                	System.out.println("Found");
+            	String [] encryptedName = scanner.nextLine().split("/")[0].split(" ");
+                byte [] nameInByte = new byte[encryptedName.length];
+                for(int i = 0; i < encryptedName.length; i++) {
+                	nameInByte[i] = Byte.valueOf(encryptedName[i]);
+                }
+                if(GlobalFunctions.decrypt(nameInByte).equals(name)) {
                 	return true;
                 }
             }
             scanner.close();
         }else {
-            throw new Exception("The file "+file.getName()+" does not exist");
+            throw new Exception("The file " + file.getName() + " does not exist");
         }
         
-        return isHere;
+        return false;
     }
     
-    
-    static  synchronized String getUser(String name) throws Exception {
-    	String pass = "";
+    static synchronized String getPassword(String name) throws Exception {
     	File file = new File("Users.txt");
         if(file.exists()) {
-            Scanner scanner = new Scanner(file);
+            @SuppressWarnings("resource")
+			Scanner scanner = new Scanner(file);
             while(scanner.hasNext()){
-                String [] users = scanner.nextLine().split(" ");
-                if(users[0].equals(name)) {
-                	pass = users[1];
+            	String [] encryptedPair = scanner.nextLine().split("/");
+            	String [] encryptedName = encryptedPair[0].split(" ");
+            	String [] encryptedPassword = encryptedPair[1].split(" ");
+                byte [] nameInByte = new byte[encryptedName.length], passwordInByte = new byte[encryptedPassword.length];
+                for(int i = 0; i < encryptedName.length; i++) nameInByte[i] = Byte.valueOf(encryptedName[i]);
+                for(int i = 0; i < encryptedPassword.length; i++) passwordInByte[i] = Byte.valueOf(encryptedPassword[i]);
+                if(GlobalFunctions.decrypt(nameInByte).equals(name)) {
+                	return GlobalFunctions.decrypt(passwordInByte);
                 }
             }
             scanner.close();
         }else {
-            throw new Exception("The file "+file.getName()+" does not exist");
+            throw new Exception("The file " + file.getName() + " does not exist");
         }
         
-        return pass;
+        return "";
     }
 
     static void initFile(String name) {
@@ -126,7 +141,7 @@ public class GlobalFunctions {
             }else if(name.contains("Client")) {
     			outputfile.print(1000);
     		}else if(name.contains("Proxy")) {
-    			outputfile.print(300);
+    			outputfile.print(500);
     		}else if(name.contains("Server")){
     			outputfile.print(0);
     		}
@@ -199,40 +214,25 @@ public class GlobalFunctions {
         }
         return latency;
     }
-
-    static synchronized void insertUser(String userName, Socket socket) throws NullPointerException {
-        UserTable users = UserTable.getInstance();
-        users.insertUser(userName, socket);
-    }
     
-    static synchronized void insertOs(String userName, ObjectOutputStream os) throws NullPointerException {
-        UserTable users = UserTable.getInstance();
-        users.insertOs(userName, os);
+    static synchronized void insertPair(String userName, ObjectOutputStream os, Socket socket) throws NullPointerException {
+    	users.insertUser(userName, socket);
+    	users.insertOs(userName, os);
     }
 
     static synchronized void deleteUser(String userName) throws NullPointerException {
-        UserTable users = UserTable.getInstance();
         users.deleteUser(userName);
-        
-    }
-
-    static synchronized Socket getSocket(String userName) throws NullPointerException{
-        UserTable users = UserTable.getInstance();
-        return users.getSocket(userName);
-    }
-
-    static synchronized Socket [] getContacts(String[] contacts) throws NullPointerException{
-        UserTable users = UserTable.getInstance();
-        return users.getContacts(contacts);
     }
 
     static synchronized ObjectOutputStream getOs(String name) throws NullPointerException{
-        UserTable users = UserTable.getInstance();
         return users.getOs(name);
     }
     
+    static synchronized Socket getSocket(String name) throws NullPointerException {
+    	return users.getSocket(name);
+    }
+    
     static synchronized ObjectOutputStream [] getOsContacts(String[] contacts) throws NullPointerException{
-    	UserTable users = UserTable.getInstance();
         return users.getOsContacts(contacts);
     }
 }

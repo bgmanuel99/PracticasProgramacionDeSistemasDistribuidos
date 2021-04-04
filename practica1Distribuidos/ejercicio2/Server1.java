@@ -12,7 +12,7 @@ public class Server1 {
             ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTSERVER1"));
             
             while(true){
-            	System.out.println("Waiting server 1... " +listenSocket.getLocalPort());
+            	System.out.println("Waiting server 1... ");
                 Socket socket = listenSocket.accept();
                 System.out.println("Accepted conexion from: " + socket.getInetAddress().toString());
                    
@@ -48,40 +48,29 @@ class ConnectionServer1 extends Thread{
 
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                System.out.println("Request : "+cr.getSubtype());
                 if(cr.getSubtype().equals("OP_REGISTER")){
-                	
-                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)))) {
-                		System.out.println("1");
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0)))) {
                 		ControlResponse crs = new ControlResponse("REGISTER_NOK");
-                		crs.getArgs().add("Registration has not been completed");
+                		crs.getArgs().add("There is already a user with that name in the DDBB");
                 		this.osProxy.writeObject(crs);
                 	}else {
-                		System.out.println("2");
-                		GlobalFunctions.addUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)), GlobalFunctions.decrypt((byte [])cr.getArgs().get(1)));
+                		GlobalFunctions.addUser((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1));
                 		ControlResponse crs = new ControlResponse("REGISTER_OK");
                 		crs.getArgs().add("Registration succesful");
                 		this.osProxy.writeObject(crs);
-                		
                 	}
                 }else if(cr.getSubtype().equals("OP_LOGIN")){
-                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0)))) {
-                		System.out.println("3");
-                		if(GlobalFunctions.getUser(GlobalFunctions.decrypt((byte [])cr.getArgs().get(0))).equals(GlobalFunctions.decrypt((byte [])cr.getArgs().get(1)))) {
-                			System.out.println("4");
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0)))) {
+                		if(GlobalFunctions.getPassword(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0))).equals(GlobalFunctions.decrypt((byte []) cr.getArgs().get(1)))) {
                 			ControlResponse crs = new ControlResponse("LOGIN_OK");
                 			crs.getArgs().add("Log in succesful");
                 			this.osProxy.writeObject(crs);
-                			
                 		}else {
-                			System.out.println("5");
                 			ControlResponse crs = new ControlResponse("LOGIN_NOK");
-                			crs.getArgs().add("Wrong pass");
+                			crs.getArgs().add("Wrong password");
                 			this.osProxy.writeObject(crs);
-                			
                 		}
                 	}else {
-                		System.out.println("6");
                 		ControlResponse crs = new ControlResponse("LOGIN_NOK");
             			crs.getArgs().add("Wrong user");
             			this.osProxy.writeObject(crs);

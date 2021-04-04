@@ -66,7 +66,6 @@ class Connection extends Thread {
     public void run() {
         try{
             Request r = (Request) this.is[0].readObject();
-            System.out.println("hi");
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
                 if(cr.getSubtype().equals("OP_REGISTER")) {
@@ -132,18 +131,17 @@ class Connection extends Thread {
 
     private void doLogin(byte [] user, byte [] password){
         try{
-        	System.out.println("1");
             DataRequest dr = new DataRequest("OP_CPU");
             for(int i = 1; i <= this.numberOfServers; i++){
                 new DataCPU(this, i, dr);
             }
-            System.out.println("2");
+            
             while (true){
                 int done = 0;
                 for(int data : this.dataCpu) if(data!=0) done++;
                 if(done == this.numberOfServers) break;
             }
-            System.out.println("3");
+            
             this.doDisconnect();
             this.doConnect();
 
@@ -168,10 +166,8 @@ class Connection extends Thread {
                 this.os[0].writeObject(crs);
                 return;
             }
-            System.out.println("4");
 
             ControlResponse crs = (ControlResponse) this.is[indexServer].readObject();
-            System.out.println("5");
             this.os[0].writeObject(crs);
         }catch(IOException e) {
             System.out.println("IOException (doLogin): " + e.getMessage());
@@ -247,7 +243,7 @@ class Connection extends Thread {
         @Override
         public void run() {
             Masking m = new Masking(this.indexServer, this);
-            long start= System.currentTimeMillis();
+            long start = System.currentTimeMillis();
             try {
                 this.connection.os[this.indexServer].writeObject(this.dataRequest);
                 m.start();
@@ -255,10 +251,10 @@ class Connection extends Thread {
                 this.done = true;
                 this.connection.dataCpu[this.indexServer-1] = Integer.valueOf(crs.getArgs().get(0).toString());
             }catch(IOException e) {
-                System.out.println("(IOException) DataCpu: "+e.getMessage());
+                System.out.println("(IOException) DataCpu: " + e.getMessage());
                 this.connection.dataCpu[this.indexServer-1] = 100;
             }catch(ClassNotFoundException e) {
-                System.out.println("(ClassNotFoundException) DataCpu: "+e.getMessage());
+                System.out.println("(ClassNotFoundException) DataCpu: " + e.getMessage());
                 this.connection.dataCpu[this.indexServer-1] = 100;
             }
             long end = System.currentTimeMillis();

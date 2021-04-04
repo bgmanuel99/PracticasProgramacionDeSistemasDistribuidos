@@ -15,8 +15,7 @@ public class CentralServer {
                 System.out.println("Waiting central server 1...");
                 Socket socket = listenSocket.accept();
                 System.out.println("Accepted conexion from: " + socket.getInetAddress().toString());
-
-                new ConnectionCentral(socket);
+                new ConnectionCentral(socket, 1);
             }
         }catch(IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
@@ -30,10 +29,12 @@ class  ConnectionCentral extends Thread{
     private ObjectOutputStream os;
     private ObjectInputStream is;
     private Socket socket;
-    private boolean done, error;
+	private boolean done, error;
+    private int centralNumber;
 
-    public ConnectionCentral(Socket socket){
+	public ConnectionCentral(Socket socket, int centralNumber){
         try {
+        	this.centralNumber = centralNumber;
             this.socket = socket;
             this.os = new ObjectOutputStream(this.socket.getOutputStream());
             this.is = new ObjectInputStream(this.socket.getInputStream());
@@ -45,49 +46,56 @@ class  ConnectionCentral extends Thread{
         }
     }
 
-    @Override
+	@Override
     public void run() {
         while(true) {
         	try{
                 Request r = (Request) this.is.readObject();
                 if(r.getType().equals("CONTROL_REQUEST")) {
                     ControlRequest cr = (ControlRequest) r;
-                    System.out.println(cr.getSubtype());
                     if(cr.getSubtype().equals("OP_MAP")) {
                         this.doMap((byte []) cr.getArgs().get(0));
                     }else if(cr.getSubtype().equals("OP_MESSAGE")) {
-                        this.doMessage((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1),(byte []) cr.getArgs().get(2));
-                        if(error) {
-                            ControlResponse crs = new ControlResponse("MESSAGE_NOK");
-                            crs.getArgs().add("Your message has not been received");
-                            this.os.writeObject(crs);
-                        }
+                    	if((GlobalFunctions.getSocket(GlobalFunctions.decrypt((byte []) cr.getArgs().get(2))) != null) &&
+                    			(GlobalFunctions.getSocket(GlobalFunctions.decrypt((byte []) cr.getArgs().get(2))).getInetAddress().getHostAddress().equals(
+                    			this.socket.getInetAddress().getHostAddress()))) {
+                    		this.doMessage((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1), (byte []) cr.getArgs().get(2));
+                            if(error) {
+                                ControlResponse crs = new ControlResponse("MESSAGE_NOK");
+                                crs.getArgs().add("Your message has not been received");
+                                this.os.writeObject(crs);
+                            }
+                    	}else throw new Exception("This address is not verified, it migth be an attack.");
                     }else if(cr.getSubtype().equals("OP_BROADCASTING")) {
-                        this.doBroadcasting(cr.getArgs());
-                        ControlResponse crs =new ControlResponse("BROADCASTING_OK");
-                        crs.getArgs().add("The broadcast was correct");
-                        this.os.writeObject(crs);
+                    	if((GlobalFunctions.getSocket(cr.getArgs().get(1).toString()) != null) &&
+                    			(GlobalFunctions.getSocket(cr.getArgs().get(1).toString()).getInetAddress().getHostAddress().equals(
+                    			this.socket.getInetAddress().getHostAddress()))) {
+	                        this.doBroadcasting(cr.getArgs());
+	                        ControlResponse crs =new ControlResponse("BROADCASTING_OK");
+	                        crs.getArgs().add("The broadcast was correct");
+	                        this.os.writeObject(crs);
+                    	}else throw new Exception("This address is not verified, it migth be an attack.");
                     }else if(cr.getSubtype().equals("OP_LOGOUT")) {
-                        this.doDisconnect();
-                        break;
+                    	GlobalFunctions.deleteUser(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0)));
+                    }else if(cr.getSubtype().equals("OP_CLOSE")) {
+                    	this.doDisconnect();
+                    	break;
                     }
                 }
             }catch(ClassNotFoundException e) {
-    			System.out.println("ClassNotFoundException: " + e.getMessage());
+    			System.out.println("ClassNotFoundException run function: " + e.getMessage());
     		}catch(IOException e) {
-    			System.out.println("Readline run function: " + e.getMessage());
+    			System.out.println("IOException run function: " + e.getMessage());
     			break;
-    		}catch (NullPointerException e) {
-				
-			}
+    		}catch(Exception e) {
+    			System.out.println("Exception run functions: " + e.getMessage());
+    		}
         }
     }
 
     private void doMap(byte [] user) {
         try{
-            GlobalFunctions.insertUser(GlobalFunctions.decrypt(user), this.socket);
-            GlobalFunctions.insertOs(GlobalFunctions.decrypt(user), this.os);
-           
+            GlobalFunctions.insertPair(GlobalFunctions.decrypt(user), this.os, this.socket);
         }catch(IOException e) {
             System.out.println("IOException (doMap): " + e.getMessage());
         }catch(Exception e) {
@@ -97,27 +105,18 @@ class  ConnectionCentral extends Thread{
 
     private void doMessage(byte [] message, byte [] user, byte [] from) {
         try{
-        	System.out.println("1");
-            Socket socket = GlobalFunctions.getSocket(GlobalFunctions.decrypt(user));
-            System.out.println("2");
             ObjectOutputStream osClient = GlobalFunctions.getOs(GlobalFunctions.decrypt(user));
-            System.out.println("3");
+            
             ControlResponse cr = new ControlResponse("OP_MESSAGE");
             cr.getArgs().add(message);
             cr.getArgs().add(from);
-
+            
             osClient.writeObject(cr);
-            
-            //Thread inactiveClient = new Thread(new InactiveClient(this, socket, osClient));
-            //inactiveClient.start();
-            
-            
         }catch(IOException e) {
-            System.out.println("IOException (doMessage): " + e.getMessage());
+            System.out.println("IOException (doMessage) Centralserver number" + this.centralNumber + ": " + e.getMessage());
             this.error = true;
         }catch(Exception e) {
-            System.out.println("Exception (doMessage): " + e.getMessage());
-            //e.printStackTrace();
+            System.out.println("Exception (doMessage) Centralserver number" + this.centralNumber + ": " + e.getMessage());
             this.error = true;
         }
     }
@@ -125,21 +124,14 @@ class  ConnectionCentral extends Thread{
     private void doBroadcasting(ArrayList users) {
         try{
             String [] user = (String []) users.get(0);
-
+            
             String nick = users.get(1).toString();
-
-            Socket [] contactSocket = GlobalFunctions.getContacts(user);
+            
             ObjectOutputStream [] contactOs= GlobalFunctions.getOsContacts(user);
             
-            for(int i = 0; i < user.length; i++) {
-            	System.out.println(user[i]);
-            	ControlResponse crs = new ControlResponse("OP_BROADCASTING");
-            	crs.getArgs().add("New user online "+nick);
-                contactOs[i].writeObject(crs);
-            }
+            for(int i = 0; i < user.length; i++) new Broadcast(nick, contactOs[i]);
         }catch(Exception e) {
             System.out.println("Exception (doBroadcasting): " + e.getMessage());
-            //e.printStackTrace();
         }
     }
 
@@ -174,7 +166,23 @@ class  ConnectionCentral extends Thread{
     public void setDone(boolean done) {
         this.done = done;
     }
+    
+    public boolean isError() {
+		return error;
+	}
 
+	public void setError(boolean error) {
+		this.error = error;
+	}
+
+	public int getCentralNumber() {
+		return centralNumber;
+	}
+
+	public void setCentralNumber(int centralNumber) {
+		this.centralNumber = centralNumber;
+	}
+	
     private void doDisconnect() {
         if(this.socket != null) {
             try{
@@ -204,21 +212,22 @@ class  ConnectionCentral extends Thread{
         }
     }
 
-    class Broadcast implements Runnable {
+    class Broadcast extends Thread {
         private ObjectOutputStream osClient;
         private String nick;
 
-        public Broadcast( String nick, ObjectOutputStream os) {
+        public Broadcast(String nick, ObjectOutputStream os) {
 			this.osClient = os;
 			this.nick = nick;
-			start();
+			this.start();
         }
 
         @Override
         public void run() {
             try{
-            	System.out.println("thread");
-                this.osClient.writeObject(new ControlResponse("OP_BROADCASTING").getArgs().add("Se ha conectado: "+this.nick));
+            	ControlResponse crs = new ControlResponse("OP_BROADCASTING");
+            	crs.getArgs().add("Se ha conectado: " + this.nick);
+                this.osClient.writeObject(crs);
             }catch(Exception e){
                 System.out.println(e.getMessage());
             }
@@ -234,7 +243,6 @@ class  ConnectionCentral extends Thread{
             this.connectionCentral = connectionCentral;
             this.socketClient = socketClient;
             this.osClient = osClient;
-            
         }
 
         @Override

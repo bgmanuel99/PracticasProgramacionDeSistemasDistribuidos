@@ -2,13 +2,11 @@ package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.net.Socket;
-import java.util.Scanner;
 
 public class Client1 {
     public final String version = "1.0";
@@ -17,11 +15,10 @@ public class Client1 {
     private ObjectOutputStream os, centralOs;
     private ObjectInputStream is, centralIs;
     private Console console;
-    private boolean done;
-    private int maxProxy = 0;
-    private String nick;
+    private boolean done, terminateThread;
+	private int maxProxy = 0, maxCentralServer = 0, numberClient;
+	private String nick;
     private long start, end;
-    private int numberClient;
 
 	public static void main(String[] args) {
         GlobalFunctions.initFile("Client1CentralLatency.txt");
@@ -37,9 +34,11 @@ public class Client1 {
 
     public void init(int numberClient) {
         try{
-            this.doConnectCentral(1);
+        	this.maxCentralServer = GlobalFunctions.getExternalVariables("MAXCENTRALSERVER");
+            this.doConnectCentral(GlobalFunctions.getExternalVariables("PORTCENTER1"), 1);
             this.console = new Console(this.version);
             this.done = false;
+            this.terminateThread = false;
             this.maxProxy = GlobalFunctions.getExternalVariables("MAXPROXY");
             this.nick = "";
             start = 0;
@@ -71,39 +70,37 @@ public class Client1 {
                             this.console.writeMessage("This are your credentials: " + credentials[0] + " " + credentials[1]);
                             this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
                             this.doLogin(credentials);
+                            this.console.setPrompt(this.nick, this.version);
                             this.doDisconnect();
                         }else throw new Exception("There is another user connected");
                     }else if(cmd.equals("message")) {
-                        String [] message = this.console.getCommandMessage();
-                        this.console.writeMessage("This is yout message: " + message[0] + ", and this is the person you wanna send it: " + message[1]);
-                        this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
-                        this.doSendMessage(message);
-                        this.doDisconnect();
+                    	if(this.nick != "") {                    		
+                    		String [] message = this.console.getCommandMessage();
+                    		this.doSendMessage(message);
+                    	}else throw new Exception("If you want to send a message you have to be connected.");
                     }else if(cmd.equals("broadcasting")) {
                         if(this.nick != "") {
                         	String [] contacts = this.console.getCommandBroadcasting();
                             this.console.writeMessage("Making the broadcast to your contacts...");
-                            this.doConnect(GlobalFunctions.getExternalVariables("PORTPROXY1"), 1);
                             this.doBroadcasting(contacts);
-                            this.doDisconnect();
-                        }else throw new Exception("If you dont connect you can not broadcast, is logical");
+                        }else throw new Exception("If you want to do a broadcast to your contacts you have to be connected.");
                     }else if(cmd.equals("logout")) {
-                        if(this.nick != ""){
-                            this.doLogout();
+                        if(this.nick != "") {
+                        	this.doLogout();
                             this.nick = "";
-                            this.console.writeMessage("Disconnecting from the client...");
-                            break;
+                            this.console.setPrompt("v", this.version);
+                            this.console.writeMessage("Disconnecting from user account...");
                         }else throw new Exception("You were already disconnected");
                     }
                 }catch(Exception e) {
                     System.out.println(e.getMessage());
                 }
-                this.checkCentral();
+                
                 cmd = this.console.getCommand();
             }
         }
-
-        this.doDisconnect();
+        
+        this.doClose();
     }
 
     private void doRegister(String [] credentials) {
@@ -154,7 +151,7 @@ public class Client1 {
             	return;
             }
             this.nick = credentials[0];
-            this.done=true;
+            this.done = true;
 
             this.end = System.currentTimeMillis();
             GlobalFunctions.setLatency((this.end-this.start), this.numberClient, "Client");
@@ -171,17 +168,18 @@ public class Client1 {
             this.console.writeMessage(crs.getArgs().get(0).toString());
         }catch(ClassNotFoundException e) {
             System.out.println(e.getMessage());
+            this.nick = "";
         }catch(IOException e) {
         	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
             this.nick = "";
         }catch (Exception e) {
         	System.out.println(e.getMessage());
+        	this.nick = "";
 		}
     }
 
     private void doBroadcasting(String[] contacts) {
         try {
-        	
         	ControlRequest cr = new ControlRequest("OP_BROADCASTING");
         	cr.getArgs().add(contacts);
         	cr.getArgs().add(this.nick);
@@ -202,7 +200,6 @@ public class Client1 {
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[0]));
             cr.getArgs().add(GlobalFunctions.encryptMessage(message[1]));
             cr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
-            System.out.println(GlobalFunctions.encryptMessage(message[0].toString()));
             this.centralOs.writeObject(cr);
 
             Thread inactiveCentral = new Thread(new InactiveCentral1(this));
@@ -216,10 +213,23 @@ public class Client1 {
 
     private void doLogout() {
         try{
-            this.centralOs.writeObject(new ControlRequest("OP_LOGOUT"));
-
-            GlobalFunctions.deleteUser(this.nick);
+        	ControlRequest cr = new ControlRequest("OP_LOGOUT");
+        	cr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
+            this.centralOs.writeObject(cr);
         }catch(IOException e) {
+        	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
+        }catch (Exception e) {
+        	System.out.println(e.getMessage());
+		}
+    }
+    
+    private void doClose() {
+    	try {
+    		this.centralOs.writeObject(new ControlRequest("OP_CLOSE"));
+    		this.terminateThread = true;
+            this.doDisconnect();
+            this.doDisconnectCentral();
+    	}catch(IOException e) {
         	this.console.writeMessage("An error has ocurred: The proxy is a bit shy");
         }catch (Exception e) {
         	System.out.println(e.getMessage());
@@ -233,7 +243,7 @@ public class Client1 {
             count++;
             auxProxy = GlobalFunctions.getExternalVariables("PORTPROXY" + count);
             if(this.socket == null){
-                this.socket=new Socket("localhost",port);
+                this.socket = new Socket("localhost", port);
                 
                 this.os = new ObjectOutputStream(this.socket.getOutputStream());
                 this.is = new ObjectInputStream(this.socket.getInputStream());
@@ -244,6 +254,30 @@ public class Client1 {
         }catch(IOException e) {
             System.out.println(e.getMessage() + "\n> Establishing connection with proxy 2...");
             this.doConnect(auxProxy, count);
+        }catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+    
+    public void doConnectCentral(int port, int count) {
+    	int auxCentral = 0;
+    	try {
+            if(count > this.maxCentralServer) throw new Exception("All the central servers are disconnected");
+            count++;
+            auxCentral = GlobalFunctions.getExternalVariables("PORTCENTER" + count);
+            if(this.centralSocket == null){
+                this.centralSocket = new Socket("localhost", port);
+                
+                this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
+                this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
+            }
+            this.terminateThread = false;
+        }catch(UncheckedIOException e) {
+            System.out.println(e.getMessage() + "\n> Establishing connection with central server 2...");
+            this.doConnectCentral(auxCentral, count);
+        }catch(IOException e) {
+            System.out.println(e.getMessage() + "\n> Establishing connection with central server 2...");
+            this.doConnectCentral(auxCentral, count);
         }catch(Exception e) {
             System.out.println(e.getMessage());
         }
@@ -268,36 +302,24 @@ public class Client1 {
         }
     }
     
-    public void checkCentral() {
-    	try {
-    		if(this.centralSocket.isClosed()) {
-        		
-    			this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER2"));
-                this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
-                this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
-                if(this.nick!=null) {
-                	ControlRequest centralCr = new ControlRequest("OP_MAP");
-                    centralCr.getArgs().add(GlobalFunctions.encryptMessage(this.nick));
-                    this.centralOs.writeObject(centralCr);
-                }
-        	}
-		} catch (Exception e) {
-			// TODO: handle exception
-		}
+    public void doDisconnectCentral() {
+    	if(this.centralSocket != null){
+            try{
+                this.centralOs.close();
+                this.centralOs = null;
+                this.centralIs.close();
+                this.centralIs = null;
+                this.centralSocket.close();
+                this.centralSocket = null;
+            }catch(UncheckedIOException e) {
+                System.out.println(e.getMessage());
+            }catch(IOException e) {
+                System.out.println(e.getMessage());
+            }catch(NullPointerException e) {
+            	System.out.println(e.getMessage());
+            }
+        }
     }
-    
-    public void doConnectCentral(int count) {
-    	try {
-    		if(count>2)throw new Exception("All the servers are disconnected");
-    		count++;
-    		this.centralSocket = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTCENTER"+count));
-            this.centralIs = new ObjectInputStream(this.centralSocket.getInputStream());
-            this.centralOs = new ObjectOutputStream(this.centralSocket.getOutputStream());
-		} catch (Exception e) {
-			this.doConnectCentral(count);
-		}
-    }
-    
 
     public void resetCurrentTime() {
         this.start = 0;
@@ -415,6 +437,22 @@ public class Client1 {
     public void setCentralIs(ObjectInputStream centralIs) {
         this.centralIs = centralIs;
     }
+    
+    public boolean isTerminateThread() {
+		return terminateThread;
+	}
+
+	public void setTerminateThread(boolean terminateThread) {
+		this.terminateThread = terminateThread;
+	}
+	
+	public int getMaxCentralServer() {
+		return maxCentralServer;
+	}
+
+	public void setMaxCentralServer(int maxCentralServer) {
+		this.maxCentralServer = maxCentralServer;
+	}
 }
 
 class Messages extends Thread {
@@ -427,7 +465,7 @@ class Messages extends Thread {
     
     @Override
     public void run() {
-    	while(true){
+    	while(!this.client.isTerminateThread()){
         	try{
                 ControlResponse crs = (ControlResponse) this.client.getCentralIs().readObject();
                 
@@ -440,18 +478,40 @@ class Messages extends Thread {
                    GlobalFunctions.setLatency((this.client.getEnd()-this.client.getStart()), this.client.getNumberClient());
                    this.client.resetCurrentTime();
                 }else if(crs.getSubtype().equals("OP_MESSAGE")) {
-                	this.client.getConsole().writeMessage("Message received from: "+GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
+                	this.client.getConsole().writeMessage("\n> Message received from: " + GlobalFunctions.decrypt((byte []) crs.getArgs().get(1)));
                 	this.client.getConsole().writeMessage(GlobalFunctions.decrypt((byte []) crs.getArgs().get(0)));
                 }else if(crs.getSubtype().equals("OP_BROADCASTING")){
                 	this.client.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 }
                 this.client.setDone(false);
-
             }catch (IOException e) {
-                System.out.println("IOException (Messages run): " + e.getMessage());
+            	if(this.client.isTerminateThread()) System.out.println("Disconnecting from the client...");
+            	else if(e.getMessage().equals("Connection reset")) {
+            		System.out.println("You have lost connection with the central server...");
+            		this.client.setTerminateThread(true);
+            		try {
+            			this.client.doDisconnectCentral();
+						this.client.doConnectCentral(GlobalFunctions.getExternalVariables("PORTCENTER1"), 1);
+					} catch (Exception e1) {
+						System.out.println(e1.getMessage());
+					}
+            		new Messages(this.client);
+            	}else System.out.println("IOException (Messages run): " + e.getMessage());
                 break;
             }catch (Exception e) {
-                System.out.println("Exception (Messages run): " + e.getMessage());
+            	if(this.client.isTerminateThread()) System.out.println("Disconnecting from the client...");
+            	else if(e.getMessage().equals("Connection reset")) {
+            		System.out.println("You have lost connection with the central server...");
+            		this.client.setTerminateThread(true);
+            		try {
+            			this.client.doDisconnectCentral();
+						this.client.doConnectCentral(GlobalFunctions.getExternalVariables("PORTCENTER1"), 1);
+					} catch (Exception e1) {
+						System.out.println("Exception (Messages run 1): " + e1.getMessage());
+					}
+            		new Messages(this.client);
+            	}else System.out.println("Exception (Messages run 2): " + e.getMessage());
+                break;
             }
         }
     }
@@ -501,7 +561,7 @@ class InactiveCentral1 implements Runnable {
         long sleep = 500;
 
         try {
-            sleep=GlobalFunctions.getLatency(this.client.getNumberClient());
+            sleep = GlobalFunctions.getLatency(this.client.getNumberClient());
         } catch (Exception e) {
             System.out.println("Exception 1 (InactiveCenter 1 run): " + e.getMessage());
         }
