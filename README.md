@@ -1,3 +1,0 @@
-# PracticasProgramacionDeSistemasDistribuidos
-## Prueba ejercicio Mensajeria 
-
