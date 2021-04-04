@@ -1,5 +1,6 @@
-package ejercicio2;
-import protocol.*;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+
+import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
 import java.io.File;
 import java.io.IOException;

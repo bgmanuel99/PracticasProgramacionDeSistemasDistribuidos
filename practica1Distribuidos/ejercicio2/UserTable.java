@@ -1,6 +1,4 @@
-package ejercicio2;
-import protocol.*;
-
+package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -37,7 +35,6 @@ public class UserTable {
 
     public void deleteUser(String userName) {
         this.sockets.remove(userName);
-        this.os.remove(userName);
     }
     
     public ObjectOutputStream getOs(String name){

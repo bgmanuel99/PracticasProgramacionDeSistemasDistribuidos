@@ -1,16 +1,12 @@
-package ejercicio2;
-import protocol.*;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
 
-
-
+import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.UncheckedIOException;
 import java.net.Socket;
-
-
 
 public class Client2 {
     public final String version = "1.0";
