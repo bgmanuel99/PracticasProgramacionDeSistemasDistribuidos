@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio2;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
 
 import java.io.IOException;
 import java.net.ServerSocket;

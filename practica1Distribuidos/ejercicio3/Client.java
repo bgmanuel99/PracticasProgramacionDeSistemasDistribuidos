@@ -1,4 +1,4 @@
-package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
+package PracticasDistribuidos.practica1Distribuidos.ejercicio3;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
 import java.io.*;

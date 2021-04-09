@@ -1,11 +1,10 @@
 package PracticasDistribuidos.practica1Distribuidos.ejercicio1;
 
 import PracticasDistribuidos.practica1Distribuidos.protocol.*;
+
 import java.net.*;
 import java.util.Random;
-import java.util.Scanner;
 import java.io.*;
-import javax.crypto.Cipher;
 
 public class Server1 {
     public static void main(String[] args) {
@@ -13,20 +12,20 @@ public class Server1 {
             ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTSERVER1"));
             
             while(true){
-            	System.out.println("Waiting server 1...");
+            	System.out.println("Waiting server 1... ");
                 Socket socket = listenSocket.accept();
-                System.out.println("Acceptada conexion de: " + socket.getInetAddress().toString());
+                System.out.println("Accepted conexion from: " + socket.getInetAddress().toString());
                    
                 new ConnectionServer1(socket);
             }
-        } catch (IOException e) {
+        } catch(IOException e) { 
             System.out.println("Listen socket: "+ e.getMessage());
-        }catch (Exception e) {
+        }catch(Exception e) {
             System.out.println(e.getMessage());
         }
     }
+    
 }
-
 class ConnectionServer1 extends Thread{
     private ObjectOutputStream osProxy;
     private ObjectInputStream isProxy;
@@ -45,33 +44,37 @@ class ConnectionServer1 extends Thread{
 
     public void run() {
         try {
-            Request r = (Request)this.isProxy.readObject();
+            Request r = (Request) this.isProxy.readObject();
 
             if(r.getType().equals("CONTROL_REQUEST")){
                 ControlRequest cr = (ControlRequest) r;
-                
-                if(cr.getSubtype().equals("OP_DECRYPT_MESSAGE")){
-                	System.out.println(this.decrypt((byte []) cr.getArgs().get(0)));
-                    System.out.println("The message has been desencrypted");
-                    
-                    File file = new File("Server1Ranking.txt");
-                    int decryptedMessages = 0;
-                    if(file.exists()){
-                        Scanner scanner = new Scanner(file);
-                        while(scanner.hasNext()) {
-                            decryptedMessages += Integer.valueOf(scanner.next());
-                        }
-                        scanner.close();
-                    }else{
-                        throw new Exception("The file Server1Ranking.txt does not exist");
-                    }
-                    PrintWriter outputFile = new PrintWriter(file);
-                    outputFile.print(decryptedMessages+1);
-                    outputFile.close();
-
-                    System.out.println("Server state saved");
-
-                    this.doDisconnect();
+                if(cr.getSubtype().equals("OP_REGISTER")){
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0)))) {
+                		ControlResponse crs = new ControlResponse("REGISTER_NOK");
+                		crs.getArgs().add("There is already a user with that name in the DDBB");
+                		this.osProxy.writeObject(crs);
+                	}else {
+                		GlobalFunctions.addUser((byte []) cr.getArgs().get(0), (byte []) cr.getArgs().get(1));
+                		ControlResponse crs = new ControlResponse("REGISTER_OK");
+                		crs.getArgs().add("Registration succesful");
+                		this.osProxy.writeObject(crs);
+                	}
+                }else if(cr.getSubtype().equals("OP_LOGIN")){
+                	if(GlobalFunctions.isUser(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0)))) {
+                		if(GlobalFunctions.getPassword(GlobalFunctions.decrypt((byte []) cr.getArgs().get(0))).equals(GlobalFunctions.decrypt((byte []) cr.getArgs().get(1)))) {
+                			ControlResponse crs = new ControlResponse("LOGIN_OK");
+                			crs.getArgs().add("Log in succesful");
+                			this.osProxy.writeObject(crs);
+                		}else {
+                			ControlResponse crs = new ControlResponse("LOGIN_NOK");
+                			crs.getArgs().add("Wrong password");
+                			this.osProxy.writeObject(crs);
+                		}
+                	}else {
+                		ControlResponse crs = new ControlResponse("LOGIN_NOK");
+            			crs.getArgs().add("Wrong user");
+            			this.osProxy.writeObject(crs);
+                	}
                 }
             }else if(r.getType().equals("DATA_REQUEST")){
                 DataRequest dr = (DataRequest) r;
@@ -80,38 +83,16 @@ class ConnectionServer1 extends Thread{
                     Random random = new Random();
                     crsCPU.getArgs().add(random.nextInt(101));
                     this.osProxy.writeObject(crsCPU);
-                    this.doDisconnect();
-                }else if(dr.getSubtype().equals("OP_RANKING_SERVER")){
-                    File file = new File("Server1Ranking.txt");
-                    String ranking = "0";
-                    if(file.exists()){
-                        Scanner scanner = new Scanner(file);
-                        while(scanner.hasNext()) ranking=scanner.next();
-                        scanner.close();
-                    }else{
-                        throw new Exception("The file Server1ranking.txt does not exist");
-                    }
-                    
-                    ControlResponse crsRanking = new ControlResponse("OP_RANKING_SERVER_OK");
-                    crsRanking.getArgs().add(ranking);
-                    this.osProxy.writeObject(crsRanking);
-                    this.doDisconnect();
                 }
             }
+            this.doDisconnect();
         }catch(ClassNotFoundException e) {
-			System.out.println("ClassNotFoundException: " + e.getMessage());
-		}catch(IOException e) {
-			System.out.println("readline: " + e.getMessage());
-		}catch(Exception e){
+            System.out.println("ClassNotFoundException: " + e.getMessage());
+        }catch(IOException e) {
+            System.out.println("readline: " + e.getMessage());
+        }catch(Exception e){
             System.out.println(e.getMessage());
         }
-    }
-
-    public String decrypt(byte [] encryptedMessage) throws Exception {
-        final Cipher aes = GlobalFunctions.getCipher(false);
-        final byte [] bytes = aes.doFinal(encryptedMessage);
-        final String message = new String(bytes, "UTF-8");
-        return message;
     }
 
     public void doDisconnect() {

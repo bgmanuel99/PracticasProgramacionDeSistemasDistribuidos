@@ -1,38 +1,45 @@
-package ejercicio3;
-
+package PracticasDistribuidos.practica1Distribuidos.ejercicio3;
 
 import java.io.*;
 
 public class Console {
-    public static String prompt;
+    public static String prompt = "Cliente v " + Client.version + "> ";
+    
     private InputStreamReader isr;
     private BufferedReader br;
-    private String version;
-
-    public Console(String version){
-    	System.out.println("Consola iniciada");
+    
+    public Console(){
         this.isr = new InputStreamReader(System.in);
         this.br = new BufferedReader(this.isr);
-        this.version = version;
-        prompt = "Console v " + this.version + "> ";
-    }
-    
-    public synchronized void writeMessage(String msg){
-        System.out.println("> " + msg);
     }
 
-    public String getCommand(){
+    public void writeMessage(String msg) {
+        System.out.println("> " + msg);
+    }
+    
+    public String getCommand() {
         String line = "";
-       
+
         try {
             System.out.println(Console.prompt);
             line = this.br.readLine();
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
-
+        
         return line;
     }
 
-   
+    public String getCommandDecrypt() {
+        String message = "";
+        
+        try{
+            System.out.println("Introduce the message to decrypt: ");
+            message = this.br.readLine();
+        }catch(IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return message;
+    }
 }
