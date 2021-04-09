@@ -6,7 +6,39 @@ public class Console {
     public static String prompt;
     private InputStreamReader isr;
     private BufferedReader br;
-    private String version;
+    public static String getPrompt() {
+		return prompt;
+	}
+
+	public static void setPrompt(String prompt) {
+		Console.prompt = prompt;
+	}
+
+	public InputStreamReader getIsr() {
+		return isr;
+	}
+
+	public void setIsr(InputStreamReader isr) {
+		this.isr = isr;
+	}
+
+	public BufferedReader getBr() {
+		return br;
+	}
+
+	public void setBr(BufferedReader br) {
+		this.br = br;
+	}
+
+	public String getVersion() {
+		return version;
+	}
+
+	public void setVersion(String version) {
+		this.version = version;
+	}
+
+	private String version;
 
     public Console(String version){
     	System.out.println("Consola iniciada");
@@ -17,6 +49,7 @@ public class Console {
     }
     
     public synchronized void writeMessage(String msg){
+    	
         System.out.println("> " + msg);
     }
 

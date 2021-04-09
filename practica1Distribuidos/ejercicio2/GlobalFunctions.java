@@ -20,25 +20,109 @@ public class GlobalFunctions {
         }
         if(name.equals("MAXSERVER")) return 0;
         return 8000;
-    } 
+    }
 
-    static void initFile(String name) {
-    	try {    		
-    		File file = new File(name);
-    		PrintWriter outputfile = new PrintWriter(file);
-    		if(name.contains("Central")){
-                outputfile.print(500);
-            }else if(name.contains("Client")) {
-    			outputfile.print(1000);
-    		}else if(name.contains("Proxy")) {
-    			outputfile.print(500);
-    		}else if(name.contains("Server")){
-    			outputfile.print(0);
-    		}
-    		outputfile.close();
-    	}catch (Exception e) {
-    		System.out.println(e.getMessage());
-    	}
+    static synchronized void initFile() throws Exception{
+        File file=new File("GlobalSleep.txt");
+        PrintWriter pw=new PrintWriter(file);
+        for(int  i = 0; i < 10;i++){
+            pw.println("nosleep");
+        }
+        pw.close();
+
+    }
+
+    static synchronized void doMoveRobot(String move, int node) throws Exception {
+        File file;
+        PrintWriter pw;
+        if(node == 0) {
+            file = new File("SpecialNode.txt");
+        }else{
+            file = new File("NormalNode" + node + ".txt");
+        }
+
+        String [] joint = new String[6];
+        int i = 0;
+        if(file.exists()) {
+            Scanner scanner = new Scanner(file);
+            while(scanner.hasNext()) {
+            	String scan = scanner.nextLine();
+                joint[i] = scan;
+                i++;
+            }
+            
+            if(move.equals("ROTATE")) {
+                for(int j = 0; j < joint.length; j++) {
+                    if(joint[j].equals("NORTH")) joint[j] = "EAST";
+                    else if(joint[j].equals("EAST")) joint[j] = "SOUTH";
+                    else if(joint[j].equals("SOUTH")) joint[j] = "WEST";
+                    else if(joint[j].equals("WEST")) joint[j] = "NORTH";
+                }
+            }else if(move.equals("TRASLATE")) {
+                for(int j = 1; j < joint.length; j++) {
+                    String aux = joint[0];
+                    joint[0] = joint[j];
+                    joint[j] = aux;
+                }
+            }
+
+            scanner.close();
+
+            pw = new PrintWriter(file);
+            for(int k = 0; k < joint.length; k++) {
+                pw.println(joint[k]);
+            }
+
+            pw.close();
+        }else {
+            throw new Exception("The file " + file.getName() + " does not exist");
+        }
+    }
+
+    static synchronized boolean isSleeping(int index) throws Exception {
+        File file = new File("GlobalSleep.txt");
+        
+        if(!file.exists()) throw new Exception("The file " + file.getName() + " does not exists");
+        
+        String [] state = new String[10];
+        int i = 0;
+        
+        Scanner scanner = new Scanner(file);
+        while(scanner.hasNext()) {
+            state[i] = scanner.nextLine();
+            i++;
+        }
+
+        scanner.close();
+        
+        if(state[index].equals("nosleep")) return false;
+        return true;
+    }
+
+    @SuppressWarnings("resource")
+	static synchronized void setSleeping(int index) throws Exception {
+        File file = new File("GlobalSleep.txt");
+
+        if(!file.exists()) throw new Exception("The file " + file.getName() + " does not exists");
+        
+        String state [] = new String[10];
+        int i = 0;
+        
+        Scanner scanner = new Scanner(file);
+        while(scanner.hasNext()) {
+            state[i] = scanner.nextLine();
+            i++;
+        }
+        
+        if(state[index].equals("nosleep")) state[index] = "sleep";
+
+        scanner.close();
+        
+        PrintWriter pw = new PrintWriter(file);
+        for(int k = 0; k < state.length; k++) {
+            pw.println(state[k]);
+        }
+        pw.close();
     }
 
     static synchronized void setLatency(long latency, int number, String type) throws Exception {
