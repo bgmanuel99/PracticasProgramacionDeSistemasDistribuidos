@@ -16,9 +16,13 @@ class MainRobot extends Thread{
     private ObjectOutputStream osRight;
     private int index = 1;
     private Console console;
+    private boolean sleep, error, fallNode;
 
     public void init() {
         this.console = new Console("1.0");
+        this.sleep = false;
+        this.error = false;
+        this.fallNode = false;
         new InterceptMessage(this);
     }
     
@@ -30,37 +34,82 @@ class MainRobot extends Thread{
         while(!cmd.equals("close")) {
             try{
                 if(cmd.equals("rotate")) {
-                    this.doConnect();
-                    this.osRight.writeObject(new ControlRequest("OP_ROTATE"));
+                    this.doConnect(this.index+1, 10);
+                    if(this.error){
+                        this.doDisconnect();
+                        break;
+                    }
+                    if(!this.fallNode) {
+                        if(!this.sleep) GlobalFunctions.doMoveRobot("ROTATE", this.index-1);
+                        else this.console.writeMessage("The node is sleeping you cant do a rotate move");
+                        this.osRight.writeObject(new ControlRequest("OP_ROTATE"));
+                    }else {
+                        this.osRight.writeObject(new ControlRequest("ERROR"));
+                        this.doDisconnect();
+                        break;
+                    }
                     this.doDisconnect();
                 }else if(cmd.equals("translate")) {
-                    this.doConnect();
-                    this.osRight.writeObject(new ControlRequest("OP_TRANSLATE"));
+                    this.doConnect(this.index+1, 10);
+                    if(this.error) {
+                        this.doDisconnect();
+                        break;
+                    }
+                    if(!this.fallNode){
+                        if(!this.sleep) GlobalFunctions.doMoveRobot("TRASLATE", this.index-1);
+                        else this.console.writeMessage("The node is sleeping you cant do a traslate move");
+                        this.osRight.writeObject(new ControlRequest("OP_TRASLATE"));
+                    }else {
+                        this.osRight.writeObject(new ControlRequest("ERROR"));
+                        this.doDisconnect();
+                        break;
+                    }
                     this.doDisconnect();
                 }else if(cmd.equals("stop")) {
-                    int index = this.console.getCommandStopRobot();
-                    this.doConnect();
-                    ControlRequest cr = new ControlRequest("OP_STOP_ROBOT");
-                    cr.getArgs().add(index);
-                    this.osRight.writeObject(cr);
+                    this.doConnect(this.index+1, 10);
+                    if(this.error) {
+                        this.doDisconnect();
+                        break;
+                    }
+                    if(!this.fallNode) {
+                        int index = this.console.getCommandStopRobot();
+                        if(index==this.index){ 
+                            this.sleep=true;
+                        }else{
+                            ControlRequest cr = new ControlRequest("OP_STOP_ROBOT");
+                            cr.getArgs().add(index);
+                            this.osRight.writeObject(cr);
+                        }
+                    }else{
+                        this.osRight.writeObject(new ControlRequest("ERROR"));
+                        this.doDisconnect();
+                        break;
+                    }
                     this.doDisconnect();
                 }
             }catch(Exception e) {
-                System.out.println(e.getMessage());
+                System.out.println("Exception mainrobot: " + e.getMessage());
             }
             cmd = this.console.getCommand();
         }
     }
 
-    private void doConnect(){
+    private void doConnect(int indexNext, int max_nodes){
         try {
             if(this.socketRight==null){
-                this.socketRight = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTROBOT"+(this.index+1)));
-                this.osRight = new ObjectOutputStream(this.socketRight.getOutputStream());
-                this.isRight = new ObjectInputStream(this.socketRight.getInputStream());
+                if(indexNext<=max_nodes){
+                    this.socketRight = new Socket("localhost",GlobalFunctions.getExternalVariables("PORTROBOT"+(indexNext)));
+                    this.osRight = new ObjectOutputStream(this.socketRight.getOutputStream());
+                    this.isRight = new ObjectInputStream(this.socketRight.getInputStream());
+                }else{
+                    this.error = true;
+                }
             }
         } catch (Exception e) {
-            System.out.println("MainRobot (doConnect)"+e.getMessage());
+            if(e.getMessage().equals("Connection refused: connect")) {
+                this.fallNode = true;
+                this.doConnect(indexNext++, max_nodes);
+            }else System.out.println("MainRobot (doConnect)"+e.getMessage());
         }
     }
 
@@ -70,11 +119,12 @@ class MainRobot extends Thread{
                 this.osRight.close();
                 this.osRight = null;
                 this.isRight.close();
+                this.isRight = null;
                 this.socketRight.close();
                 this.socketRight = null;
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.out.println("Exception doDisconnect: " + e.getMessage());
         }
     }
 
@@ -121,7 +171,6 @@ class MainRobot extends Thread{
 }
 
 class InterceptMessage extends Thread{
-    private int index = 1;
     private Socket socketLeft;
     private ObjectInputStream isLeft;
     private ObjectOutputStream osLeft;
@@ -144,7 +193,7 @@ class InterceptMessage extends Thread{
                 ControlResponse crs = (ControlResponse) this.isLeft.readObject();
                 if(crs.getSubtype().equals("OP_ROTATE_OK")){
                     this.mainRobot.getConsole().writeMessage(crs.getArgs().get(0).toString());
-                }else if(crs.getSubtype().equals("OP_TRANSLATION_OK")) {
+                }else if(crs.getSubtype().equals("OP_TRASLATION_OK")) {
                     this.mainRobot.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 }else if(crs.getSubtype().equals("OP_STOP_ROBOT_OK")){
                     this.mainRobot.getConsole().writeMessage(crs.getArgs().get(0).toString());

@@ -6,15 +6,25 @@ import java.io.*;
 
 class NormalNode9{
     public static void main(String[] args) {
+        new Listen2();
+    }
+}
+
+class Listen2{
+    
+    public boolean keep = true;
+
+    public Listen2(){
         try{
             ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTROBOT10"));
 
             while(true) {
+                if(!this.keep) break;
                 System.out.println("Waiting robot9...");
                 Socket socket = listenSocket.accept();
                 System.out.println("Accepted connection from: " + socket.getInetAddress().toString());
                 
-                new Connection2(socket);
+                new Connection2(socket, this);
             }
         }catch (Exception e){
             System.out.println(e.getMessage());
@@ -27,9 +37,11 @@ class Connection2 extends Thread{
     private Socket robotLeft, robotRight;
     private ObjectOutputStream osLeft, osRight;
     private ObjectInputStream isLeft, isRight;
+    private Listen2 listen2;
 
-    public Connection2(Socket socket) {
+    public Connection2(Socket socket, Listen2 listen2) {
         try{
+
             if(this.robotLeft==null) {
                 this.robotLeft = socket;
                 this.osLeft = new ObjectOutputStream(this.robotLeft.getOutputStream());
@@ -38,6 +50,7 @@ class Connection2 extends Thread{
         }catch(Exception e) {
             System.out.println(e.getMessage());
         }
+        this.listen2 = listen2;
         this.start();
     }
 
@@ -49,13 +62,17 @@ class Connection2 extends Thread{
                 ControlRequest cr = (ControlRequest) r;
                 if(cr.getSubtype().equals("OP_ROTATE")) {
                     this.doConnectionRight();
+                    if(!GlobalFunctions.isSleeping(this.index-1)) GlobalFunctions.doMoveRobot("ROTATE", this.index-1);
+                    else System.out.println("The node is sleeping you cant do a rotate move");
                     ControlResponse crs = new ControlResponse("OP_ROTATE_OK");
                     crs.getArgs().add("All the rotations where done successfully");
                     this.osRight.writeObject(crs);
                     this.doDisconnectRight();
-                }else if(cr.getSubtype().equals("OP_TRANSLATE")){
+                }else if(cr.getSubtype().equals("OP_TRASLATE")){
                     this.doConnectionRight();
-                    ControlResponse crs = new ControlResponse("OP_TRANSLATION_OK");
+                    if(!GlobalFunctions.isSleeping(this.index-1)) GlobalFunctions.doMoveRobot("TRASLATE", this.index-1);
+                    else System.out.println("The node is sleeping you cant do a traslate move");
+                    ControlResponse crs = new ControlResponse("OP_TRASLATION_OK");
                     crs.getArgs().add("All the translations where done successfully");
                     this.osRight.writeObject(crs);
                     this.doDisconnectRight();
@@ -63,6 +80,7 @@ class Connection2 extends Thread{
                     if(this.index == (int) cr.getArgs().get(0)) {
                     	System.out.println("i´m going to mimir,xoxo");
                     	this.doConnectionRight();
+                    	GlobalFunctions.setSleeping(this.index-1);
                     	ControlResponse crs = new ControlResponse("OP_STOP_ROBOT_OK");
                     	crs.getArgs().add("The node went to sleep correctly");
                     	this.osRight.writeObject(crs);
@@ -80,13 +98,18 @@ class Connection2 extends Thread{
                 	crs.getArgs().add("The node went to sleep correctly");
                 	this.osRight.writeObject(crs);
                 	this.doDisconnectRight();
+                }else if(cr.getSubtype().equals("ERROR")){
+                    this.doDisconnectRight();
+                    this.listen2.keep = false;
                 }
             }
         }catch(ClassNotFoundException e) {
 			System.out.println("ClassNotFoundException(run): " + e.getMessage());
 		}catch(IOException e) {
 			System.out.println("Readline(run): " + e.getMessage());
-		}
+		}catch(Exception e) {
+            System.out.println("Exception(run): " + e.getMessage());
+        }
     }
 
     public void doConnectionRight(){
