@@ -13,19 +13,20 @@ class NormalNode9{
 class Listen2{
     
     public boolean keep = true;
+    public ServerSocket listenSocket;
 
     public Listen2(){
         try{
-            ServerSocket listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTROBOT10"));
+            this.listenSocket = new ServerSocket(GlobalFunctions.getExternalVariables("PORTROBOT10"));
 
-            while(true) {
-                if(!this.keep) break;
+            do {
+            	if(!this.keep) break;
                 System.out.println("Waiting robot9...");
-                Socket socket = listenSocket.accept();
+                Socket socket = this.listenSocket.accept();
                 System.out.println("Accepted connection from: " + socket.getInetAddress().toString());
                 
                 new Connection2(socket, this);
-            }
+			} while (keep);
         }catch (Exception e){
             System.out.println(e.getMessage());
         }
@@ -99,8 +100,11 @@ class Connection2 extends Thread{
                 	this.osRight.writeObject(crs);
                 	this.doDisconnectRight();
                 }else if(cr.getSubtype().equals("ERROR")){
+                	this.doConnectionRight();
+                	this.osRight.writeObject(new ControlResponse("ERROR"));
                     this.doDisconnectRight();
                     this.listen2.keep = false;
+                    this.listen2.listenSocket.close();
                 }
             }
         }catch(ClassNotFoundException e) {

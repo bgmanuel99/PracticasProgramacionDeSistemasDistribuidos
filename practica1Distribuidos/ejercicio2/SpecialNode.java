@@ -17,13 +17,19 @@ class MainRobot extends Thread{
     private int index = 1;
     private Console console;
     private boolean sleep, error, fallNode;
+    private InterceptMessage interceptMessage;
 
     public void init() {
         this.console = new Console("1.0");
         this.sleep = false;
         this.error = false;
         this.fallNode = false;
-        new InterceptMessage(this);
+        try {
+			GlobalFunctions.initFile();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+        this.interceptMessage = new InterceptMessage(this);
     }
     
     public MainRobot() {
@@ -37,6 +43,7 @@ class MainRobot extends Thread{
                     this.doConnect(this.index+1, 10);
                     if(this.error){
                         this.doDisconnect();
+                        this.interceptMessage.getSocketLeft().close();
                         break;
                     }
                     if(!this.fallNode) {
@@ -45,6 +52,7 @@ class MainRobot extends Thread{
                         this.osRight.writeObject(new ControlRequest("OP_ROTATE"));
                     }else {
                         this.osRight.writeObject(new ControlRequest("ERROR"));
+                        
                         this.doDisconnect();
                         break;
                     }
@@ -53,6 +61,7 @@ class MainRobot extends Thread{
                     this.doConnect(this.index+1, 10);
                     if(this.error) {
                         this.doDisconnect();
+                        this.interceptMessage.getSocketLeft().close();
                         break;
                     }
                     if(!this.fallNode){
@@ -69,6 +78,7 @@ class MainRobot extends Thread{
                     this.doConnect(this.index+1, 10);
                     if(this.error) {
                         this.doDisconnect();
+                        this.interceptMessage.getSocketLeft().close();
                         break;
                     }
                     if(!this.fallNode) {
@@ -94,7 +104,7 @@ class MainRobot extends Thread{
         }
     }
 
-    private void doConnect(int indexNext, int max_nodes){
+    public void doConnect(int indexNext, int max_nodes){
         try {
             if(this.socketRight==null){
                 if(indexNext<=max_nodes){
@@ -113,7 +123,7 @@ class MainRobot extends Thread{
         }
     }
 
-    private void doDisconnect(){
+    public void doDisconnect(){
         try {
             if(this.socketRight!=null){
                 this.osRight.close();
@@ -167,12 +177,11 @@ class MainRobot extends Thread{
     public void setIndex(int index) {
         this.index = index;
     }
-    
 }
 
 class InterceptMessage extends Thread{
     private Socket socketLeft;
-    private ObjectInputStream isLeft;
+	private ObjectInputStream isLeft;
     private ObjectOutputStream osLeft;
     private MainRobot mainRobot;
     
@@ -197,6 +206,12 @@ class InterceptMessage extends Thread{
                     this.mainRobot.getConsole().writeMessage(crs.getArgs().get(0).toString());
                 }else if(crs.getSubtype().equals("OP_STOP_ROBOT_OK")){
                     this.mainRobot.getConsole().writeMessage(crs.getArgs().get(0).toString());
+                }else if(crs.getSubtype().equals("ERROR")) {
+                    this.mainRobot.getConsole().writeMessage("Type close...");
+                    this.mainRobot.doConnect(2, 10);
+                    this.mainRobot.getOsRight().writeObject(new ControlRequest("ERROR"));
+                    this.mainRobot.doDisconnect();
+                    break;
                 }
                 if(this.socketLeft!=null){
                     this.isLeft.close();
@@ -211,4 +226,36 @@ class InterceptMessage extends Thread{
             System.out.println("InterceptMessage (run) " + e.getMessage());
         }
     }
+    
+    public Socket getSocketLeft() {
+		return socketLeft;
+	}
+
+	public void setSocketLeft(Socket socketLeft) {
+		this.socketLeft = socketLeft;
+	}
+
+	public ObjectInputStream getIsLeft() {
+		return isLeft;
+	}
+
+	public void setIsLeft(ObjectInputStream isLeft) {
+		this.isLeft = isLeft;
+	}
+
+	public ObjectOutputStream getOsLeft() {
+		return osLeft;
+	}
+
+	public void setOsLeft(ObjectOutputStream osLeft) {
+		this.osLeft = osLeft;
+	}
+
+	public MainRobot getMainRobot() {
+		return mainRobot;
+	}
+
+	public void setMainRobot(MainRobot mainRobot) {
+		this.mainRobot = mainRobot;
+	}
 }
