@@ -76,11 +76,11 @@ class FilterImpl extends FilterPOA{
             	BufferedImage flipedImage = ImageIO.read(new File(path));
                 for(int i = 0; i < flipedImage.getWidth(); i++) {
                     for(int j = 0; j < flipedImage.getHeight(); j++) {
-                        if((flipedImage.getWidth() % 2 == 1) && (Math.floor(flipedImage.getWidth()/2) == i)) {
+                        if((flipedImage.getWidth() % 2 == 1) && (Math.floor(flipedImage.getWidth()/2) <= i)) {
                             int aux = flipedImage.getRGB(i, j);
                             flipedImage.setRGB(i, j, flipedImage.getRGB(flipedImage.getWidth()-i-1, j));
                             flipedImage.setRGB(flipedImage.getWidth()-i-1, j, aux);
-                        }else if((flipedImage.getWidth() % 2 == 0) && (Math.ceil(flipedImage.getWidth()/2) <= i)) {
+                        }else if((flipedImage.getWidth() % 2 == 0) && ((flipedImage.getWidth()/2) <= i)) {
                             int aux = flipedImage.getRGB(i, j);
                             flipedImage.setRGB(i, j, flipedImage.getRGB(flipedImage.getWidth()-i-1, j));
                             flipedImage.setRGB(flipedImage.getWidth()-i-1, j, aux);
