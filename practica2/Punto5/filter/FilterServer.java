@@ -93,7 +93,7 @@ class FilterImpl extends FilterPOA{
             }else if (filter ==4) {
             	Process process = Runtime.getRuntime().exec("python C:/Users/fer27/OneDrive/Escritorio/Distribuidos/filterDark.py");
             	path = path.substring(0, path.lastIndexOf('/'));
-                path = path + "/result.jpg";
+                path = path + "/filter.jpg";
             }
         } catch (IOException e) {
             System.out.println(e.getMessage());

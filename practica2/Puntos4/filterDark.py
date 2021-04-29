@@ -13,6 +13,6 @@ kernel = kernel/(np.sum(kernel) if np.sum(kernel)!=0 else 1)
 
 #filter the source image
 img_rst = cv2.filter2D(image,-1,kernel)
-
+print("Saving image...")
 #save result image
-cv2.imwrite('result.jpg',img_rst)
+cv2.imwrite('C:/Users/fer27/OneDrive/Escritorio/Java_Corba/corba/img/filter.jpg',img_rst)
