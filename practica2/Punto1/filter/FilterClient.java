@@ -33,10 +33,21 @@ public class FilterClient
         String name = "Filter";
         filterImpl = FilterHelper.narrow(ncRef.resolve_str(name));
         System.out.println("Obtained a handle on server object: " + filterImpl);
-        String path = filterImpl.getFilterImage("C:/Users/fer27/OneDrive/Escritorio/Java_Corba/corba/img/monaLisa.jpg");
-        System.out.println(path);
-        filterImpl.shutdown();
 
+	Scanner scanner = new Scanner(System.in);
+        System.out.print("Do you wanto to filter an image? yes|close: ");
+	String cmd = scanner.nextLine();
+
+	while(!cmd.equals("close")){
+		String path = filterImpl.getFilterImage("C:/Users/fer27/OneDrive/Escritorio/Java_Corba/corba/img/monaLisa.jpg");
+        	System.out.println(path);
+        	System.out.print("Do you wanto to filter an image? yes|close: ");
+		cmd = scanner.nextLine();
+
+	}
+
+        
+	filterImpl.shutdown();
       }catch (Exception e) {
         System.out.println("ERROR : " + e) ;
         e.printStackTrace(System.out);
